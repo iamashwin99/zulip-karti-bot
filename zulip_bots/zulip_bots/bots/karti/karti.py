@@ -35,6 +35,8 @@ class KartiHandler:
         images = convert_from_path(pdf_f_name)
         image = images[0]
         image=image.resize((660,932),Image.ANTIALIAS)
+        area = (0, 0, 660, 466)
+        image = image.crop(area)
         image.save(image_f_name, 'JPEG', optimize = True, compress_level = 9)
     
         url=self.uploadImage(image_f_name)
@@ -47,14 +49,22 @@ class KartiHandler:
         ask_date = datetime.date.today()
         if(day=='next_day'):
             ask_date = ask_date + datetime.timedelta(days=1)
-        try:
-            if(str(ask_date) in links):
-                url =  links[str(ask_date)]
-            else:
-                url = self.getCFELMenu(day)
-                links[str(ask_date)]=url
-        except:
-            return "I am a potato and I dont know how to read, please try again later"
+        # try:
+        #     if(str(ask_date) in links):
+        #         url =  links[str(ask_date)]
+        #     else:
+        #         url = self.getCFELMenu(day)
+        #         links[str(ask_date)]=url
+        # except Exception as e:
+            
+        #     return  "I am a potato and I dont know how to read, please try again later" + str(e)
+
+        if(str(ask_date) in links):
+            url =  links[str(ask_date)]
+        else:
+            url = self.getCFELMenu(day)
+            links[str(ask_date)]=url
+
         return  "[Check here]("+url+")"
 
 
