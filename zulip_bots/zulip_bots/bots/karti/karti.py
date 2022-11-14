@@ -9,8 +9,10 @@ import wget
 import zulip
 from pdf2image import convert_from_path
 from PIL import Image
-client = zulip.Client(config_file="/home/karnada/zulip/python-zulip-api/zuliprc")
+import datetime
 
+
+links={}
 class KartiHandler:
     def getDESYMenu(self):
         # take a screen shot of the site  https://desy.myalsterfood.de/
@@ -20,13 +22,13 @@ class KartiHandler:
 
     def uploadImage(self, filename,method='zulip'):
         if(method=='zulip'):
+            client = zulip.Client(config_file="/home/karnada/sandbox/zulip-karti-bot/zuliprc")
             with open(filename, "rb") as fp:
                 result = client.upload_file(fp)
             os.remove(filename)
             return result["uri"]
 
-    def getMenu(self,day='today'):
-        # day can be today, next_day
+    def getCFELMenu(self,day='today'):
         image_f_name = "menu.jpg"
         pdf_f_name = "menu.pdf"
         response = wget.download("https://www.stwhh.de/en/?type=1628686455&l=177&t="+day, "menu.pdf")
@@ -34,9 +36,25 @@ class KartiHandler:
         image = images[0]
         image=image.resize((660,932),Image.ANTIALIAS)
         image.save(image_f_name, 'JPEG', optimize = True, compress_level = 9)
-       
+    
         url=self.uploadImage(image_f_name)
         os.remove(pdf_f_name)
+        return url
+
+
+    def getMenu(self,day='today'):
+        # day can be today, next_day
+        ask_date = datetime.date.today()
+        if(day=='next_day'):
+            ask_date = ask_date + datetime.timedelta(days=1)
+        try:
+            if(str(ask_date) in links):
+                url =  links[str(ask_date)]
+            else:
+                url = self.getCFELMenu(day)
+                links[str(ask_date)]=url
+        except:
+            return "I am a potato and I dont know how to read, please try again later"
         return  "[Check here]("+url+")"
 
 
