@@ -10,9 +10,9 @@ import zulip
 from pdf2image import convert_from_path
 from PIL import Image
 import datetime
+import shelve
 
-
-links={}
+links=shelve.open("links.txt")
 class KartiHandler:
     def getDESYMenu(self):
         # take a screen shot of the site  https://desy.myalsterfood.de/
