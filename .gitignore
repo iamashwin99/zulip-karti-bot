@@ -57,3 +57,11 @@ botserverrc
 # Pycharm
 \.DS_Store
 \.idea/
+links.txt.bak
+.gitignore
+links.txt.dir
+.gitignore
+source.sh
+links.txt.dat
+.gitignore
+req.txt
