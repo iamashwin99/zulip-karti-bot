@@ -49,23 +49,23 @@ class KartiHandler:
         ask_date = datetime.date.today()
         if(day=='next_day'):
             ask_date = ask_date + datetime.timedelta(days=1)
-        # try:
-        #     if(str(ask_date) in links):
-        #         url =  links[str(ask_date)]
-        #     else:
-        #         url = self.getCFELMenu(day)
-        #         links[str(ask_date)]=url
-        # except Exception as e:
+        try:
+            if(str(ask_date) in links):
+                url =  links[str(ask_date)]
+            else:
+                url = self.getCFELMenu(day)
+                links[str(ask_date)]=url
+        except Exception as e:
             
-        #     return  "I am a potato and I dont know how to read, please try again later" + str(e)
+            return  "I am a potato and I dont know how to read, please try again later" + str(e)
 
-        if(str(ask_date) in links):
-            url =  links[str(ask_date)]
-        else:
-            url = self.getCFELMenu(day)
-            links[str(ask_date)]=url
+        # if(str(ask_date) in links):
+        #     url =  links[str(ask_date)]
+        # else:
+        #     url = self.getCFELMenu(day)
+        #     links[str(ask_date)]=url
 
-        return  "[Check here]("+url+")"
+        # return  "[Check here]("+url+")"
 
 
     def usage(self) -> str:
