@@ -65,7 +65,7 @@ class KartiHandler:
         #     url = self.getCFELMenu(day)
         #     links[str(ask_date)]=url
 
-        # return  "[Check here]("+url+")"
+        return  "[Check here]("+url+")"
 
 
     def usage(self) -> str:
