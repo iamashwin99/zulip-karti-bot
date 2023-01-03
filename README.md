@@ -28,6 +28,7 @@ sudo systemctl enable karti-zulip-bot```
 
 Note: Make sure to replace `/sandbox/zulip-karti-bot/zulip-api-py3-venv/bin/activate` with the actual path to the script that activates your virtual environment, and `zulip-run-bot karti --config-file zuliprc` with the actual command you want to run.
 
+
 # Zulip API
 
 [![Build status](https://github.com/zulip/python-zulip-api/workflows/build/badge.svg)](https://github.com/zulip/python-zulip-api/actions?query=branch%3Amain+workflow%3Abuild)
