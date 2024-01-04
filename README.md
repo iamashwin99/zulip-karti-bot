@@ -1,6 +1,6 @@
 # Kartoffel Bot - MPSD Zulip
 
-Assuming the repo is cloned at `~/sandbox/zulip-karti-bot` create the following systemd service:
+Assuming the repo is cloned at `/scratch/karnada/Sandbox/zulip-bots/zulip-karti-bot` create the following systemd service:
 
 ```bash
 [Unit]
@@ -10,12 +10,21 @@ After=network.target
 [Service]
 Type=simple
 User=karnada
-WorkingDirectory=/home/karnada/sandbox/zulip-karti-bot
-ExecStart=/bin/bash -c "source /home/karnada/sandbox/zulip-karti-bot/zulip-api-py3-venv/bin/activate && zulip-run-bot karti --config-file zuliprc"
+WorkingDirectory=/scratch/karnada/Sandbox/zulip-bots
+ExecStart=/bin/bash -c "source /scratch/karnada/Sandbox/zulip-bots/startkarti.sh"
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
+```
+with contents of `/scratch/karnada/Sandbox/zulip-bots/startkarti.sh` as:
+```bash
+#!/bin/bash
+
+source /scratch/karnada/Sandbox/zulip-bots/zulip-env/bin/activate
+sleep 10
+zulip-run-bot karti --force --config-file /scratch/karnada/Sandbox/zulip-bots/kartizuliprc
+
 ```
 To use this service, save the file as `karti-zulip-bot.service` in the `/etc/systemd/system` directory. Then, you can start the service using the following command:
 ```
@@ -26,8 +35,8 @@ To enable the service to start automatically at boot, use the following command:
 ```
 sudo systemctl enable karti-zulip-bot```
 
-Note: Make sure to replace `/sandbox/zulip-karti-bot/zulip-api-py3-venv/bin/activate` with the actual path to the script that activates your virtual environment, and `zulip-run-bot karti --config-file zuliprc` with the actual command you want to run.
-
+Note: Make sure to replace `/scratch/karnada/Sandbox/zulip-bots/zulip-env/bin/activate` with the actual path to the script that activates your virtual environment, and `zulip-run-bot karti --config-file zuliprc` with the actual command you want to run.
+```
 
 # Zulip API
 
