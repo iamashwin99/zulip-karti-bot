@@ -18,7 +18,7 @@ class StubBotHandler:
         self.reset_transcript()
 
     def reset_transcript(self) -> None:
-        self.transcript = []  # type: List[Tuple[str, Dict[str, Any]]]
+        self.transcript: List[Tuple[str, Dict[str, Any]]] = []
 
     def identity(self) -> BotIdentity:
         return BotIdentity(self.full_name, self.email)
@@ -47,11 +47,11 @@ class StubBotHandler:
     def upload_file(self, file: IO[Any]) -> Dict[str, Any]:
         return self.message_server.upload_file(file)
 
-    class BotQuitException(Exception):
+    class BotQuitError(Exception):
         pass
 
     def quit(self, message: str = "") -> None:
-        raise self.BotQuitException()
+        raise self.BotQuitError
 
     def get_config_info(self, bot_name: str, optional: bool = False) -> Dict[str, str]:
         return {}
@@ -68,19 +68,19 @@ class StubBotHandler:
 
     def ensure_unique_response(self, responses: List[Dict[str, Any]]) -> None:
         if not responses:
-            raise Exception("The bot is not responding for some reason.")
+            raise ValueError("The bot is not responding for some reason.")
         if len(responses) > 1:
-            raise Exception("The bot is giving too many responses for some reason.")
+            raise ValueError("The bot is giving too many responses for some reason.")
 
 
 class DefaultTests:
     bot_name = ""
 
     def make_request_message(self, content: str) -> Dict[str, Any]:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_response(self, message: Dict[str, Any]) -> Dict[str, Any]:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def test_bot_usage(self) -> None:
         bot = get_bot_message_handler(self.bot_name)
@@ -145,7 +145,7 @@ class BotTestCase(unittest.TestCase):
         # Start a new message handler for the full conversation.
         bot, bot_handler = self._get_handlers()
 
-        for (request, expected_response) in conversation:
+        for request, expected_response in conversation:
             message = self.make_request_message(request)
             bot_handler.reset_transcript()
             bot.handle_message(message, bot_handler)

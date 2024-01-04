@@ -4,9 +4,8 @@ import argparse
 import os
 import subprocess
 import sys
-from collections import OrderedDict
 from pathlib import PurePath
-from typing import Dict, List, cast
+from typing import List, OrderedDict
 
 from zulint import lister
 
@@ -21,15 +20,6 @@ exclude = [
     # Excluded because we don't want to require bot authors to
     # fully annotate their bots.
     "zulip_bots/zulip_bots/bots",
-    "zulip_bots/zulip_bots/bots_unmaintained",
-    # Excluded out of laziness:
-    "zulip_bots/zulip_bots/simple_lib.py",
-    "zulip_bots/zulip_bots/tests/test_lib.py",
-    # Excluded because this is a self-contained script
-    # we ask our users to download and run directly and
-    # py2 and py3 compatibility is required.
-    "zulip/integrations/trello/zulip_trello.py",
-    "tools",
 ]
 
 # These files will be included even if excluded by a rule above.
@@ -97,8 +87,6 @@ force_include = [
     "zulip_bots/zulip_bots/bots/susi/test_susi.py",
     "zulip_bots/zulip_bots/bots/front/front.py",
     "zulip_bots/zulip_bots/bots/front/test_front.py",
-    "tools/custom_check.py",
-    "tools/deploy",
 ]
 
 parser = argparse.ArgumentParser(description="Run mypy on files tracked by git.")
@@ -121,61 +109,26 @@ parser.add_argument(
     help="""run mypy on all python files, ignoring the exclude list.
                     This is useful if you have to find out which files fail mypy check.""",
 )
-parser.add_argument(
-    "--no-disallow-untyped-defs",
-    dest="disallow_untyped_defs",
-    action="store_false",
-    default=True,
-    help="""Don't throw errors when functions are not annotated""",
-)
-parser.add_argument(
-    "--scripts-only",
-    dest="scripts_only",
-    action="store_true",
-    default=False,
-    help="""Only type check extensionless python scripts""",
-)
-parser.add_argument(
-    "--warn-unused-ignores",
-    dest="warn_unused_ignores",
-    action="store_true",
-    default=False,
-    help="""Use the --warn-unused-ignores flag with mypy""",
-)
-parser.add_argument(
-    "--no-ignore-missing-imports",
-    dest="ignore_missing_imports",
-    action="store_false",
-    default=True,
-    help="""Don't use the --ignore-missing-imports flag with mypy""",
-)
-parser.add_argument(
-    "--quick", action="store_true", default=False, help="""Use the --quick flag with mypy"""
-)
 args = parser.parse_args()
 
 if args.all:
     exclude = []
 
 # find all non-excluded files in current directory
-files_dict = cast(
-    Dict[str, List[str]],
-    lister.list_files(
-        targets=args.targets,
-        ftypes=["py", "pyi"],
-        use_shebang=True,
-        modified_only=args.modified,
-        exclude=exclude + ["stubs"],
-        group_by_ftype=True,
-        extless_only=args.scripts_only,
-    ),
+files_dict = lister.list_files(
+    targets=args.targets,
+    ftypes=["py", "pyi"],
+    use_shebang=True,
+    modified_only=args.modified,
+    exclude=[*exclude, "stubs"],
+    group_by_ftype=True,
 )
 
 for inpath in force_include:
     try:
         ext = os.path.splitext(inpath)[1].split(".")[1]
     except IndexError:
-        ext = "py"  # type: str
+        ext = "py"
     files_dict[ext].append(inpath)
 
 pyi_files = set(files_dict["pyi"])
@@ -183,7 +136,7 @@ python_files = [
     fpath for fpath in files_dict["py"] if not fpath.endswith(".py") or fpath + "i" not in pyi_files
 ]
 
-repo_python_files = OrderedDict(
+repo_python_files = OrderedDict[str, List[str]](
     [("zulip", []), ("zulip_bots", []), ("zulip_botserver", []), ("tools", [])]
 )
 for file_path in python_files:
@@ -193,22 +146,12 @@ for file_path in python_files:
 
 mypy_command = "mypy"
 
-extra_args = ["--follow-imports=silent"]
-if args.disallow_untyped_defs:
-    extra_args.append("--disallow-untyped-defs")
-if args.warn_unused_ignores:
-    extra_args.append("--warn-unused-ignores")
-if args.ignore_missing_imports:
-    extra_args.append("--ignore-missing-imports")
-if args.quick:
-    extra_args.append("--quick")
-
 # run mypy
 status = 0
 for repo, python_files in repo_python_files.items():
     print(f"Running mypy for `{repo}`.", flush=True)
     if python_files:
-        result = subprocess.call([mypy_command] + extra_args + python_files)
+        result = subprocess.call([mypy_command, "--", *python_files])
         if result != 0:
             status = result
     else:

@@ -16,7 +16,7 @@ parser = optparse.OptionParser()
 parser.add_option("--verbose", dest="verbose", default=False, action="store_true")
 parser.add_option("--site", dest="site", default=None, action="store")
 parser.add_option("--sharded", default=False, action="store_true")
-(options, args) = parser.parse_args()
+options, args = parser.parse_args()
 
 mit_user = "tabbott/extra@ATHENA.MIT.EDU"
 
@@ -61,10 +61,10 @@ if options.sharded:
         ("tabbott-nagios-test-11", "e"),
         ("tabbott-nagios-test-9", "f"),
     ]
-    for (stream, test) in test_streams:
+    for stream, test in test_streams:
         if stream == "message":
             continue
-        assert hashlib.sha1(stream.encode("utf-8")).hexdigest().startswith(test)
+        assert hashlib.sha1(stream.encode("utf-8")).hexdigest().startswith(test)  # noqa: S324
 else:
     test_streams = [
         ("message", "p"),
@@ -73,7 +73,6 @@ else:
 
 
 def print_status_and_exit(status: int) -> None:
-
     # The output of this script is used by Nagios. Various outputs,
     # e.g. true success and punting due to a SERVNAK, result in a
     # non-alert case, so to give us something unambiguous to check in
@@ -127,14 +126,14 @@ except Exception:
 
 # Subscribe to Zephyrs
 zephyr_subs_to_add = []
-for (stream, test) in test_streams:
+for stream, _test in test_streams:
     if stream == "message":
         zephyr_subs_to_add.append((stream, "personal", mit_user))
     else:
         zephyr_subs_to_add.append((stream, "*", "*"))
 
 actually_subscribed = False
-for tries in range(10):
+for _tries in range(10):
     try:
         zephyr_ctypes.check(zephyr_ctypes.ZInitialize())
         zephyr_port = c_ushort()
@@ -177,7 +176,7 @@ for tries in range(10):
         missing = 0
         for elt in zephyr_subs_to_add:
             if elt not in zephyr_subs:
-                logging.error(f"Failed to subscribe to {elt}")
+                logging.error("Failed to subscribe to %s", elt)
                 missing += 1
         if missing == 0:
             actually_subscribed = True
@@ -193,8 +192,8 @@ if not actually_subscribed:
     print_status_and_exit(1)
 
 # Prepare keys
-zhkeys = {}  # type: Dict[str, Tuple[str, str]]
-hzkeys = {}  # type: Dict[str, Tuple[str, str]]
+zhkeys: Dict[str, Tuple[str, str]] = {}
+hzkeys: Dict[str, Tuple[str, str]] = {}
 
 
 def gen_key(key_dict: Dict[str, Tuple[str, str]]) -> str:
@@ -206,7 +205,7 @@ def gen_key(key_dict: Dict[str, Tuple[str, str]]) -> str:
 
 
 def gen_keys(key_dict: Dict[str, Tuple[str, str]]) -> None:
-    for (stream, test) in test_streams:
+    for stream, test in test_streams:
         key_dict[gen_key(key_dict)] = (stream, test)
 
 
@@ -214,6 +213,7 @@ gen_keys(zhkeys)
 gen_keys(hzkeys)
 
 notices = []
+
 
 # We check for new zephyrs multiple times, to avoid filling the zephyr
 # receive queue with 30+ messages, which might result in messages
@@ -228,6 +228,7 @@ def receive_zephyrs() -> None:
             logging.exception("Exception receiving zephyrs:")
             break
         if notice.z_opcode != b"":
+            zephyr_ctypes.ZFreeNotice(byref(notice))
             continue
         notices.append(notice)
 
@@ -235,7 +236,7 @@ def receive_zephyrs() -> None:
 logger.info("Starting sending messages!")
 # Send zephyrs
 zsig = "Timothy Good Abbott"
-for key, (stream, test) in zhkeys.items():
+for key, (stream, _test) in zhkeys.items():
     if stream == "message":
         zwrite_args = ["zwrite", "-n", "-s", zsig, mit_user]
     else:
@@ -249,19 +250,18 @@ for key, (stream, test) in zhkeys.items():
         server_failure_again = send_zephyr(zwrite_args, str(new_key))
         if server_failure_again:
             logging.error(
-                "Zephyr server failure twice in a row on keys %s and %s!  Aborting."
-                % (key, new_key)
+                "Zephyr server failure twice in a row on keys %s and %s!  Aborting.", key, new_key
             )
             print_status_and_exit(1)
         else:
-            logging.warning(f"Replaced key {key} with {new_key} due to Zephyr server failure.")
+            logging.warning("Replaced key %s with %s due to Zephyr server failure.", key, new_key)
     receive_zephyrs()
 
 receive_zephyrs()
 logger.info("Sent Zephyr messages!")
 
 # Send Zulips
-for key, (stream, test) in hzkeys.items():
+for key, (stream, _test) in hzkeys.items():
     if stream == "message":
         send_zulip(
             {
@@ -309,17 +309,16 @@ all_keys = set(list(zhkeys.keys()) + list(hzkeys.keys()))
 
 
 def process_keys(content_list: List[str]) -> Tuple[Dict[str, int], Set[str], Set[str], bool, bool]:
-
     # Start by filtering out any keys that might have come from
     # concurrent check-mirroring processes
     content_keys = [key for key in content_list if key in all_keys]
-    key_counts = {}  # type: Dict[str, int]
+    key_counts: Dict[str, int] = {}
     for key in all_keys:
         key_counts[key] = 0
     for key in content_keys:
         key_counts[key] += 1
-    z_missing = {key for key in zhkeys.keys() if key_counts[key] == 0}
-    h_missing = {key for key in hzkeys.keys() if key_counts[key] == 0}
+    z_missing = {key for key in zhkeys if key_counts[key] == 0}
+    h_missing = {key for key in hzkeys if key_counts[key] == 0}
     duplicates = any(val > 1 for val in key_counts.values())
     success = all(val == 1 for val in key_counts.values())
     return key_counts, z_missing, h_missing, duplicates, success
@@ -332,8 +331,11 @@ z_contents = [
     notice.z_message[: notice.z_message_len].split(b"\0")[1].decode(errors="replace")
     for notice in notices
 ]
-(h_key_counts, h_missing_z, h_missing_h, h_duplicates, h_success) = process_keys(h_contents)
-(z_key_counts, z_missing_z, z_missing_h, z_duplicates, z_success) = process_keys(z_contents)
+h_key_counts, h_missing_z, h_missing_h, h_duplicates, h_success = process_keys(h_contents)
+z_key_counts, z_missing_z, z_missing_h, z_duplicates, z_success = process_keys(z_contents)
+
+for notice in notices:
+    zephyr_ctypes.ZFreeNotice(byref(notice))
 
 if z_success and h_success:
     logger.info("Success!")
@@ -348,16 +350,24 @@ for key in all_keys:
     if z_key_counts[key] == 1 and h_key_counts[key] == 1:
         continue
     if key in zhkeys:
-        (stream, test) = zhkeys[key]
+        stream, test = zhkeys[key]
         logger.warning(
-            "%10s: z got %s, h got %s.  Sent via Zephyr(%s): class %s"
-            % (key, z_key_counts[key], h_key_counts[key], test, stream)
+            "%10s: z got %s, h got %s.  Sent via Zephyr(%s): class %s",
+            key,
+            z_key_counts[key],
+            h_key_counts[key],
+            test,
+            stream,
         )
     if key in hzkeys:
-        (stream, test) = hzkeys[key]
+        stream, test = hzkeys[key]
         logger.warning(
-            "%10s: z got %s. h got %s.  Sent via Zulip(%s): class %s"
-            % (key, z_key_counts[key], h_key_counts[key], test, stream)
+            "%10s: z got %s. h got %s.  Sent via Zulip(%s): class %s",
+            key,
+            z_key_counts[key],
+            h_key_counts[key],
+            test,
+            stream,
         )
 logger.error("")
 logger.error("Summary of specific problems:")

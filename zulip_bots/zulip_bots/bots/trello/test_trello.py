@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from typing_extensions import override
+
 from zulip_bots.bots.trello.trello import TrelloHandler
 from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler
 
@@ -7,12 +9,14 @@ mock_config = {"api_key": "TEST", "access_token": "TEST", "user_name": "TEST"}
 
 
 class TestTrelloBot(BotTestCase, DefaultTests):
-    bot_name = "trello"  # type: str
+    bot_name: str = "trello"
 
+    @override
     def test_bot_responds_to_empty_message(self) -> None:
         with self.mock_config_info(mock_config), patch("requests.get"):
             self.verify_reply("", "Empty Query")
 
+    @override
     def test_bot_usage(self) -> None:
         with self.mock_config_info(mock_config), patch("requests.get"):
             self.verify_reply(
@@ -25,7 +29,7 @@ class TestTrelloBot(BotTestCase, DefaultTests):
             )
 
     def test_bot_quit_with_invalid_config(self) -> None:
-        with self.mock_config_info(mock_config), self.assertRaises(StubBotHandler.BotQuitException):
+        with self.mock_config_info(mock_config), self.assertRaises(StubBotHandler.BotQuitError):
             with self.mock_http_conversation("invalid_key"):
                 TrelloHandler().initialize(StubBotHandler())
 
@@ -79,7 +83,7 @@ class TestTrelloBot(BotTestCase, DefaultTests):
             with self.mock_http_conversation("get_lists"):
                 self.verify_reply(
                     "get-all-lists TEST",
-                    ("**Lists:**\n" "1. TEST_A\n" "  * TEST_1\n" "2. TEST_B\n" "  * TEST_2"),
+                    "**Lists:**\n1. TEST_A\n  * TEST_1\n2. TEST_B\n  * TEST_2",
                 )
 
     def test_command_exceptions(self) -> None:

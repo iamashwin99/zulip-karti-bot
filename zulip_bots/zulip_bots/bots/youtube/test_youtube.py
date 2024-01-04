@@ -1,18 +1,20 @@
-from typing import Dict
+from typing import Dict, Final
 from unittest.mock import patch
 
 from requests.exceptions import ConnectionError, HTTPError
+from typing_extensions import override
 
-from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler, get_bot_message_handler
+from zulip_bots.test_file_utils import get_bot_message_handler
+from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler
 
 
 class TestYoutubeBot(BotTestCase, DefaultTests):
     bot_name = "youtube"
-    normal_config = {
+    normal_config: Final[Dict[str, str]] = {
         "key": "12345678",
         "number_of_results": "5",
         "video_region": "US",
-    }  # type: Dict[str,str]
+    }
 
     help_content = (
         "*Help for YouTube bot* :robot_face: : \n\n"
@@ -26,6 +28,7 @@ class TestYoutubeBot(BotTestCase, DefaultTests):
     )
 
     # Override default function in BotTestCase
+    @override
     def test_bot_responds_to_empty_message(self) -> None:
         with self.mock_config_info(self.normal_config), self.mock_http_conversation("test_keyok"):
             self.verify_reply("", self.help_content)
@@ -47,7 +50,7 @@ class TestYoutubeBot(BotTestCase, DefaultTests):
         with self.mock_config_info(
             {"key": "somethinginvalid", "number_of_results": "5", "video_region": "US"}
         ), self.mock_http_conversation("test_invalid_key"), self.assertRaises(
-            bot_handler.BotQuitException
+            bot_handler.BotQuitError
         ):
             bot.initialize(bot_handler)
 
@@ -105,5 +108,5 @@ class TestYoutubeBot(BotTestCase, DefaultTests):
             "requests.get", side_effect=ConnectionError()
         ), patch("logging.exception"):
             self.verify_reply(
-                "Wow !", "Uh-Oh, couldn't process the request " "right now.\nPlease again later"
+                "Wow !", "Uh-Oh, couldn't process the request right now.\nPlease again later"
             )

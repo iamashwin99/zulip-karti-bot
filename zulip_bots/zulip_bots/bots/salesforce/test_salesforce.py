@@ -3,8 +3,10 @@ from typing import Any, Dict, Iterator
 from unittest.mock import patch
 
 from simple_salesforce.exceptions import SalesforceAuthenticationFailed
+from typing_extensions import override
 
-from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler, read_bot_fixture_data
+from zulip_bots.test_file_utils import read_bot_fixture_data
+from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler
 
 
 @contextmanager
@@ -96,7 +98,7 @@ mock_object_types = {
 
 
 class TestSalesforceBot(BotTestCase, DefaultTests):
-    bot_name = "salesforce"  # type: str
+    bot_name: str = "salesforce"
 
     def _test(self, test_name: str, message: str, response: str, auth_success: bool = True) -> None:
         with self.mock_config_info(mock_config), mock_salesforce_auth(
@@ -110,6 +112,7 @@ class TestSalesforceBot(BotTestCase, DefaultTests):
         ), mock_salesforce_commands_types():
             bot, bot_handler = self._get_handlers()
 
+    @override
     def test_bot_responds_to_empty_message(self) -> None:
         self._test("test_one_result", "", help_text)
 
@@ -160,7 +163,7 @@ class TestSalesforceBot(BotTestCase, DefaultTests):
         self._test("test_one_result", "find contact", "Usage: find contact <name> [arguments]")
 
     def test_bad_auth(self) -> None:
-        with self.assertRaises(StubBotHandler.BotQuitException):
+        with self.assertRaises(StubBotHandler.BotQuitError):
             self._test_initialize(auth_success=False)
 
     def test_callback(self) -> None:

@@ -1,8 +1,10 @@
 import copy
 import random
-from typing import Any, List, Tuple
+from typing import Any, Final, List, Tuple
 
-from zulip_bots.game_handler import BadMoveException, GameAdapter
+from typing_extensions import override
+
+from zulip_bots.game_handler import BadMoveError, GameAdapter
 
 # -------------------------------------
 
@@ -13,7 +15,7 @@ class TicTacToeModel:
     smarter = True
     # If smarter is True, the computer will do some extra thinking - it'll be harder for the user.
 
-    triplets = [
+    triplets: Final = [
         [(0, 0), (0, 1), (0, 2)],  # Row 1
         [(1, 0), (1, 1), (1, 2)],  # Row 2
         [(2, 0), (2, 1), (2, 2)],  # Row 3
@@ -24,7 +26,7 @@ class TicTacToeModel:
         [(0, 2), (1, 1), (2, 0)],  # Diagonal 2
     ]
 
-    initial_board = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+    initial_board: Final = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
 
     def __init__(self, board: Any = None) -> None:
         if board is not None:
@@ -66,29 +68,15 @@ class TicTacToeModel:
 
     def get_locations_of_char(self, board: Any, char: int) -> List[List[int]]:
         """Gets the locations of the board that have char in them."""
-        locations = []
-        for row in range(3):
-            for col in range(3):
-                if board[row][col] == char:
-                    locations.append([row, col])
-        return locations
+        return [[row, col] for row in range(3) for col in range(3) if board[row][col] == char]
 
     def two_blanks(self, triplet: List[Tuple[int, int]], board: Any) -> List[Tuple[int, int]]:
         """Determines which rows/columns/diagonals have two blank spaces and an 2 already in them. It's more advantageous
         for the computer to move there. This is used when the computer makes its move."""
 
-        o_found = False
-        for position in triplet:
-            if self.get_value(board, position) == 2:
-                o_found = True
-                break
-
-        blanks_list = []
+        o_found = any(self.get_value(board, position) == 2 for position in triplet)
         if o_found:
-            for position in triplet:
-                if self.get_value(board, position) == 0:
-                    blanks_list.append(position)
-
+            blanks_list = [position for position in triplet if self.get_value(board, position) == 0]
             if len(blanks_list) == 2:
                 return blanks_list
         return []
@@ -116,7 +104,7 @@ class TicTacToeModel:
                 board[1][1] = 2
             # If user played first in the center, the computer should move in the corner. It doesn't matter which corner.
             else:
-                location = random.choice(corner_locations)
+                location = random.choice(corner_locations)  # noqa: S311
                 row = location[0]
                 col = location[1]
                 board[row][col] = 2
@@ -160,7 +148,7 @@ class TicTacToeModel:
         # there are two blanks and an 2 in each row, column, and diagonal (done in two_blanks).
         # If smarter is False, all blank locations can be chosen.
         if self.smarter:
-            blanks = []  # type: Any
+            blanks: Any = []
             for triplet in self.triplets:
                 result = self.two_blanks(triplet, board)
                 if result:
@@ -168,16 +156,16 @@ class TicTacToeModel:
             blank_set = set(blanks)
             blank_list = list(blank_set)
             if blank_list == []:
-                location = random.choice(blank_locations)
+                location = random.choice(blank_locations)  # noqa: S311
             else:
-                location = random.choice(blank_list)
+                location = random.choice(blank_list)  # noqa: S311
             row = location[0]
             col = location[1]
             board[row][col] = 2
             return board
 
         else:
-            location = random.choice(blank_locations)
+            location = random.choice(blank_locations)  # noqa: S311
             row = location[0]
             col = location[1]
             board[row][col] = 2
@@ -201,21 +189,21 @@ class TicTacToeModel:
             return self.computer_move(self.current_board, player_number + 1)
         move_coords_str = coords_from_command(move)
         if not self.is_valid_move(move_coords_str):
-            raise BadMoveException("Make sure your move is from 0-9")
+            raise BadMoveError("Make sure your move is from 0-9")
         board = self.current_board
         move_coords = move_coords_str.split(",")
         # Subtraction must be done to convert to the right indices,
         # since computers start numbering at 0.
-        row = (int(move_coords[1])) - 1
-        column = (int(move_coords[0])) - 1
+        row = int(move_coords[1]) - 1
+        column = int(move_coords[0]) - 1
         if board[row][column] != 0:
-            raise BadMoveException("Make sure your space hasn't already been filled.")
+            raise BadMoveError("Make sure your space hasn't already been filled.")
         board[row][column] = player_number + 1
         return board
 
 
 class TicTacToeMessageHandler:
-    tokens = [":x:", ":o:"]
+    tokens = (":x:", ":o:")
 
     def parse_row(self, row: Tuple[int, int], row_num: int) -> str:
         """Takes the row passed in as a list and returns it as a string."""
@@ -251,22 +239,21 @@ class TicTacToeMessageHandler:
         return f"{original_player} put a token at {move_info}"
 
     def game_start_message(self) -> str:
-        return (
-            "Welcome to tic-tac-toe!" "To make a move, type @-mention `move <number>` or `<number>`"
-        )
+        return "Welcome to tic-tac-toe!To make a move, type @-mention `move <number>` or `<number>`"
 
 
-class ticTacToeHandler(GameAdapter):
+class TicTacToeHandler(GameAdapter):
     """
     You can play tic-tac-toe! Make sure your message starts with
     "@mention-bot".
     """
 
-    META = {
+    META: Final = {
         "name": "TicTacToe",
         "description": "Lets you play Tic-tac-toe against a computer.",
     }
 
+    @override
     def usage(self) -> str:
         return """
             You can play tic-tac-toe now! Make sure your
@@ -279,7 +266,7 @@ class ticTacToeHandler(GameAdapter):
         move_help_message = "* To move during a game, type\n`move <number>` or `<number>`"
         move_regex = r"(move (\d)$)|((\d)$)"
         model = TicTacToeModel
-        gameMessageHandler = TicTacToeMessageHandler
+        game_message_handler = TicTacToeMessageHandler
         rules = """Try to get three in horizontal or vertical or diagonal row to win the game."""
         super().__init__(
             game_name,
@@ -287,7 +274,7 @@ class ticTacToeHandler(GameAdapter):
             move_help_message,
             move_regex,
             model,
-            gameMessageHandler,
+            game_message_handler,
             rules,
             supports_computer=True,
         )
@@ -303,4 +290,4 @@ def coords_from_command(cmd: str) -> str:
     return cmd
 
 
-handler_class = ticTacToeHandler
+handler_class = TicTacToeHandler

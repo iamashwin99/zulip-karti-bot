@@ -54,8 +54,7 @@ class ChessHandler:
         if bot_handler.storage.contains("is_with_computer"):
             is_with_computer = (
                 # `bot_handler`'s `storage` only accepts `str` values.
-                bot_handler.storage.get("is_with_computer")
-                == str(True)
+                bot_handler.storage.get("is_with_computer") == str(True)
             )
 
         if bot_handler.storage.contains("last_fen"):
@@ -402,7 +401,7 @@ def make_loss_response(board: chess.Board, reason: str) -> str:
 
     Returns: The loss response string.
     """
-    return ("*{}* {}. **{}** wins!\n\n" "{}").format(
+    return "*{}* {}. **{}** wins!\n\n{}".format(
         "White" if board.turn else "Black",
         reason,
         "Black" if board.turn else "White",
@@ -419,7 +418,7 @@ def make_not_legal_response(board: chess.Board, move_san: str) -> str:
 
     Returns: The not-legal-move response string.
     """
-    return ("Sorry, the move *{}* isn't legal.\n\n" "{}" "\n\n\n" "{}").format(
+    return "Sorry, the move *{}* isn't legal.\n\n{}\n\n\n{}".format(
         move_san, make_str(board, board.turn), make_footer()
     )
 
@@ -569,7 +568,7 @@ def guide_with_numbers(board_str: str) -> str:
     # newline. From then on, numbers are inserted at newlines.
     row_list = list("8" + board_without_whitespace_str)
 
-    for i, char in enumerate(row_list):
+    for i, _char in enumerate(row_list):
         # `(i + 1) % 10 == 0` if it is the end of a row, i.e., the 10th column
         # since lists are 0-indexed.
         if (i + 1) % 10 == 0:

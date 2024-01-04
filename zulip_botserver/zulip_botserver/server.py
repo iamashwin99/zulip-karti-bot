@@ -31,7 +31,7 @@ def read_config_section(parser: configparser.ConfigParser, section: str) -> Dict
 
 
 def read_config_from_env_vars(bot_name: Optional[str] = None) -> Dict[str, Dict[str, str]]:
-    bots_config = {}  # type: Dict[str, Dict[str, str]]
+    bots_config: Dict[str, Dict[str, str]] = {}
     json_config = os.environ.get("ZULIP_BOTSERVER_CONFIG")
 
     if json_config is None:
@@ -50,12 +50,12 @@ def read_config_from_env_vars(bot_name: Optional[str] = None) -> Dict[str, Dict[
             # exist in the configuration provided via the environment
             # variable, use the first bot in the environment variable,
             # with name updated to match, along with a warning.
-            first_bot_name = list(env_config.keys())[0]
+            first_bot_name = next(iter(env_config.keys()))
             bots_config[bot_name] = env_config[first_bot_name]
             logging.warning(
-                "First bot name in the config list was changed from '{}' to '{}'".format(
-                    first_bot_name, bot_name
-                )
+                "First bot name in the config list was changed from %r to %r",
+                first_bot_name,
+                bot_name,
             )
     else:
         bots_config = dict(env_config)
@@ -67,7 +67,7 @@ def read_config_file(
 ) -> Dict[str, Dict[str, str]]:
     parser = parse_config_file(config_file_path)
 
-    bots_config = {}  # type: Dict[str, Dict[str, str]]
+    bots_config: Dict[str, Dict[str, str]] = {}
     if bot_name is None:
         bots_config = {
             section: read_config_section(parser, section) for section in parser.sections()
@@ -90,14 +90,12 @@ def read_config_file(
         bot_section = parser.sections()[0]
         bots_config[bot_name] = read_config_section(parser, bot_section)
         logging.warning(
-            "First bot name in the config list was changed from '{}' to '{}'".format(
-                bot_section, bot_name
-            )
+            "First bot name in the config list was changed from %r to %r", bot_section, bot_name
         )
         ignored_sections = parser.sections()[1:]
 
     if len(ignored_sections) > 0:
-        logging.warning(f"Sections except the '{bot_section}' will be ignored")
+        logging.warning("Sections except the %r will be ignored", bot_section)
 
     return bots_config
 
@@ -118,7 +116,7 @@ def load_lib_modules(available_bots: List[str]) -> Dict[str, ModuleType]:
             if bot.endswith(".py") and os.path.isfile(bot):
                 lib_module = import_module_from_source(bot, "custom_bot_module")
             else:
-                module_name = "zulip_bots.bots.{bot}.{bot}".format(bot=bot)
+                module_name = f"zulip_bots.bots.{bot}.{bot}"
                 lib_module = import_module(module_name)
             bots_lib_module[bot] = lib_module
         except ImportError:
@@ -149,7 +147,9 @@ def load_bot_handlers(
             api_key=bots_config[bot]["key"],
             site=bots_config[bot]["site"],
         )
-        bot_dir = os.path.join(os.path.dirname(os.path.abspath(bot_lib_modules[bot].__file__)))
+        bot_file = bot_lib_modules[bot].__file__
+        assert bot_file is not None
+        bot_dir = os.path.dirname(os.path.abspath(bot_file))
         bot_handler = lib.ExternalBotHandler(
             client, bot_dir, bot_details={}, bot_config_parser=third_party_bot_conf
         )
@@ -173,7 +173,7 @@ def init_message_handlers(
 
 
 app = Flask(__name__)
-bots_config = {}  # type: Dict[str, Dict[str, str]]
+bots_config: Dict[str, Dict[str, str]] = {}
 
 
 @app.route("/", methods=["POST"])
@@ -201,7 +201,9 @@ def handle_bot() -> str:
     bot_handler = app.config.get("BOT_HANDLERS", {})[bot]
     message_handler = app.config.get("MESSAGE_HANDLERS", {})[bot]
     is_mentioned = event["trigger"] == "mention"
-    is_private_message = event["trigger"] == "private_message"
+    # TODO/compatibility: Remove the support for "private_message" as a valid
+    # trigger value once we no longer support pre-8.0 Zulip servers.
+    is_direct_message = event["trigger"] in ["direct_message", "private_message"]
     message = event["message"]
     message["full_content"] = message["content"]
     # Strip at-mention botname from the message
@@ -212,14 +214,14 @@ def handle_bot() -> str:
         if message["content"] is None:
             return json.dumps(dict(response_not_required=True))
 
-    if is_private_message or is_mentioned:
+    if is_direct_message or is_mentioned:
         message_handler.handle_message(message=message, bot_handler=bot_handler)
     return json.dumps(dict(response_not_required=True))
 
 
 def main() -> None:
     options = parse_args()
-    global bots_config
+    global bots_config  # noqa: PLW0603
 
     if options.use_env_vars:
         bots_config = read_config_from_env_vars(options.bot_name)

@@ -1,10 +1,10 @@
 from typing import Any, List
 
-from zulip_bots.game_handler import BadMoveException, GameAdapter
+from zulip_bots.game_handler import BadMoveError, GameAdapter
 
 
 class GameHandlerBotMessageHandler:
-    tokens = [":blue_circle:", ":red_circle:"]
+    tokens = (":blue_circle:", ":red_circle:")
 
     def parse_board(self, board: Any) -> str:
         return "foo"
@@ -31,7 +31,7 @@ class MockModel:
             if int(move.replace("move ", "")) < 9:
                 return "mock board"
             else:
-                raise BadMoveException("Invalid Move.")
+                raise BadMoveError("Invalid Move.")
         return "mock board"
 
     def determine_game_over(self, players: List[str]) -> None:
@@ -50,7 +50,7 @@ class GameHandlerBotHandler(GameAdapter):
         move_help_message = "* To make your move during a game, type\n```move <column-number>```"
         move_regex = r"move (\d)$"
         model = MockModel
-        gameMessageHandler = GameHandlerBotMessageHandler
+        game_message_handler = GameHandlerBotMessageHandler
         rules = ""
 
         super().__init__(
@@ -59,7 +59,7 @@ class GameHandlerBotHandler(GameAdapter):
             move_help_message,
             move_regex,
             model,
-            gameMessageHandler,
+            game_message_handler,
             rules,
             max_players=2,
             supports_computer=True,

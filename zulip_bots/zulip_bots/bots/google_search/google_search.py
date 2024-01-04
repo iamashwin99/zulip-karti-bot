@@ -3,7 +3,7 @@ import logging
 from typing import Dict, List
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from zulip_bots.lib import BotHandler
 
@@ -16,7 +16,9 @@ def google_search(keywords: str) -> List[Dict[str, str]]:
     soup = BeautifulSoup(page.text, "lxml")
 
     # Gets all search URLs
-    anchors = soup.find(id="search").findAll("a")
+    search = soup.find(id="search")
+    assert isinstance(search, Tag)
+    anchors = search.findAll("a")
     results = []
 
     for a in anchors:
@@ -49,9 +51,7 @@ def get_google_result(search_keywords: str) -> str:
 
     search_keywords = search_keywords.strip()
 
-    if search_keywords == "help":
-        return help_message
-    elif search_keywords == "" or search_keywords is None:
+    if search_keywords in ("help", ""):
         return help_message
     else:
         try:
@@ -60,7 +60,7 @@ def get_google_result(search_keywords: str) -> str:
                 return "Found no results."
             return "Found Result: [{}]({})".format(results[0]["name"], results[0]["url"])
         except Exception as e:
-            logging.exception(str(e))
+            logging.exception("Error fetching Google results")
             return f"Error: Search failed. {e}."
 
 

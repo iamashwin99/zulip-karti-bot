@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from typing_extensions import override
+
 from zulip_bots.bots.mention.mention import MentionHandler
 from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler
 
@@ -7,6 +9,7 @@ from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler
 class TestMentionBot(BotTestCase, DefaultTests):
     bot_name = "mention"
 
+    @override
     def test_bot_responds_to_empty_message(self) -> None:
         with self.mock_config_info({"access_token": "12345"}), patch("requests.get"):
             self.verify_reply("", "Empty Mention Query")
@@ -24,14 +27,14 @@ class TestMentionBot(BotTestCase, DefaultTests):
 
     def test_get_account_id(self) -> None:
         bot_test_instance = MentionHandler()
-        bot_test_instance.access_token = "TEST"
+        bot_test_instance.access_token = "TEST"  # noqa: S105
 
         with self.mock_http_conversation("get_account_id"):
             self.assertEqual(bot_test_instance.get_account_id(), "TEST")
 
     def test_get_alert_id(self) -> None:
         bot_test_instance = MentionHandler()
-        bot_test_instance.access_token = "TEST"
+        bot_test_instance.access_token = "TEST"  # noqa: S105
         bot_test_instance.account_id = "TEST"
 
         with self.mock_http_conversation("get_alert_id"):
@@ -39,7 +42,7 @@ class TestMentionBot(BotTestCase, DefaultTests):
 
     def test_get_mentions(self) -> None:
         bot_test_instance = MentionHandler()
-        bot_test_instance.access_token = "TEST"
+        bot_test_instance.access_token = "TEST"  # noqa: S105
         bot_test_instance.account_id = "TEST"
 
         with self.mock_http_conversation("get_mentions"):
@@ -52,5 +55,5 @@ class TestMentionBot(BotTestCase, DefaultTests):
 
         with self.mock_config_info({"access_token": "TEST"}):
             with self.mock_http_conversation("invalid_api_key"):
-                with self.assertRaises(StubBotHandler.BotQuitException):
+                with self.assertRaises(StubBotHandler.BotQuitError):
                     bot_test_instance.initialize(StubBotHandler())

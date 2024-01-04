@@ -1,5 +1,7 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, Sequence
 from unittest.mock import patch
+
+from typing_extensions import override
 
 from zulip_bots.game_handler import GameInstance
 from zulip_bots.test_lib import BotTestCase, DefaultTests
@@ -8,6 +10,7 @@ from zulip_bots.test_lib import BotTestCase, DefaultTests
 class TestGameHandlerBot(BotTestCase, DefaultTests):
     bot_name = "game_handler_bot"
 
+    @override
     def make_request_message(
         self,
         content: str,
@@ -75,7 +78,7 @@ class TestGameHandlerBot(BotTestCase, DefaultTests):
         self,
         id: str = "",
         bot: Any = None,
-        players: List[str] = ["foo", "baz"],
+        players: Sequence[str] = ["foo", "baz"],
         subject: str = "test game",
         stream: str = "test",
     ) -> Any:
@@ -465,8 +468,8 @@ class TestGameHandlerBot(BotTestCase, DefaultTests):
         bot = self.add_user_to_cache("foo")
         self.add_user_to_cache("baz", bot)
         bot.invites = {"abcdefg": {"host": "foo@example.com", "baz@example.com": "a"}}
-        self.assertFalse(bot.is_user_not_player("foo@example.com"))
-        self.assertFalse(bot.is_user_not_player("baz@example.com"))
+        self.assertFalse(bot.is_user_not_player("foo@example.com", {}))
+        self.assertFalse(bot.is_user_not_player("baz@example.com", {}))
 
     def test_move_help_message(self) -> None:
         bot = self.setup_game()

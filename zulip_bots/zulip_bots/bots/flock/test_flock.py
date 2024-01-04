@@ -1,21 +1,24 @@
+from typing import Final
 from unittest.mock import patch
 
 from requests.exceptions import ConnectionError
+from typing_extensions import override
 
 from zulip_bots.test_lib import BotTestCase, DefaultTests
 
 
 class TestFlockBot(BotTestCase, DefaultTests):
     bot_name = "flock"
-    normal_config = {"token": "12345"}
+    normal_config: Final = {"token": "12345"}
 
-    message_config = {"token": "12345", "text": "Ricky: test message", "to": "u:somekey"}
+    message_config: Final = {"token": "12345", "text": "Ricky: test message", "to": "u:somekey"}
 
     help_message = """
 You can send messages to any Flock user associated with your account from Zulip.
 *Syntax*: **@botname to: message** where `to` is **firstName** of recipient.
 """
 
+    @override
     def test_bot_responds_to_empty_message(self) -> None:
         self.verify_reply("", self.help_message)
 

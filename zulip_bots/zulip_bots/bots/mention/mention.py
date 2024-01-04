@@ -75,12 +75,12 @@ class MentionHandler:
             "Accept-Version": "1.15",
         }
 
-        create_alert_data = {
+        create_alert_data: Any = {
             "name": keyword,
             "query": {"type": "basic", "included_keywords": [keyword]},
             "languages": ["en"],
             "sources": ["web"],
-        }  # type: Any
+        }
 
         response = requests.post(
             "https://api.mention.net/api/accounts/" + self.account_id + "/alerts",
@@ -114,15 +114,15 @@ class MentionHandler:
 
         try:
             alert_id = self.get_alert_id(keyword)
-        except (TypeError, KeyError):
+        except (TypeError, KeyError) as e:
             # Usually triggered by invalid token or json parse error when account quote is finished.
-            raise MentionNoResponseException()
+            raise MentionNoResponseError from e
 
         try:
             mentions = self.get_mentions(alert_id)
-        except (TypeError, KeyError):
+        except (TypeError, KeyError) as e:
             # Usually triggered by no response or json parse error when account quota is finished.
-            raise MentionNoResponseException()
+            raise MentionNoResponseError from e
 
         reply = "The most recent mentions of `" + keyword + "` on the web are: \n"
         for mention in mentions:
@@ -133,5 +133,5 @@ class MentionHandler:
 handler_class = MentionHandler
 
 
-class MentionNoResponseException(Exception):
+class MentionNoResponseError(Exception):
     pass

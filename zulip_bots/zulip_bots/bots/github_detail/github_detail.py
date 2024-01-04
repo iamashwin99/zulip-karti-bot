@@ -27,7 +27,7 @@ class GithubHandler:
             "To reference an issue or pull request usename mention the bot then "
             "anytime in the message type its id, for example:\n"
             "@**Github detail** #3212 zulip#3212 zulip/zulip#3212\n"
-            "The default owner is {} and the default repo is {}.".format(self.owner, self.repo)
+            f"The default owner is {self.owner} and the default repo is {self.repo}."
         )
 
     def format_message(self, details: Dict[str, Any]) -> str:
@@ -44,10 +44,8 @@ class GithubHandler:
         message_string = (
             f"**[{owner}/{repo}#{number}]",
             f"({link}) - {title}**\n",
-            "Created by **[{author}](https://github.com/{author})**\n".format(author=author),
-            "Status - **{status}**\n```quote\n{description}\n```".format(
-                status=status, description=description
-            ),
+            f"Created by **[{author}](https://github.com/{author})**\n",
+            f"Status - **{status}**\n```quote\n{description}\n```",
         )
         return "".join(message_string)
 
@@ -59,8 +57,8 @@ class GithubHandler:
             r = requests.get(
                 self.GITHUB_ISSUE_URL_TEMPLATE.format(owner=owner, repo=repo, id=number)
             )
-        except requests.exceptions.RequestException as e:
-            logging.exception(str(e))
+        except requests.exceptions.RequestException:
+            logging.exception("Error connecting to GitHub")
             return None
         if r.status_code != requests.codes.ok:
             return None
@@ -100,9 +98,7 @@ class GithubHandler:
                     bot_messages.append(self.format_message(details))
                 else:
                     bot_messages.append(
-                        "Failed to find issue/pr: {owner}/{repo}#{id}".format(
-                            owner=owner, repo=repo, id=issue_pr.group(3)
-                        )
+                        f"Failed to find issue/pr: {owner}/{repo}#{issue_pr.group(3)}"
                     )
             else:
                 bot_messages.append("Failed to detect owner and repository name.")

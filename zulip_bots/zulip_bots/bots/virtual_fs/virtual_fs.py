@@ -2,13 +2,13 @@
 
 import os
 import re
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any, Dict, Final, List, Set, Tuple, Union
 
 from zulip_bots.lib import BotHandler
 
 
 class VirtualFsHandler:
-    META = {
+    META: Final = {
         "name": "VirtualFs",
         "description": "Provides a simple, permanent file system to store and retrieve strings.",
     }
@@ -166,10 +166,7 @@ def syntax_help(cmd_name: str) -> str:
     commands = get_commands()
     f, arg_names = commands[cmd_name]
     arg_syntax = " ".join("<" + a + ">" for a in arg_names)
-    if arg_syntax:
-        cmd = cmd_name + " " + arg_syntax
-    else:
-        cmd = cmd_name
+    cmd = cmd_name + " " + arg_syntax if arg_syntax else cmd_name
     return f"syntax: {cmd}"
 
 
@@ -201,7 +198,7 @@ def fs_mkdir(fs: Dict[str, Any], user: str, fn: str) -> Tuple[Dict[str, Any], An
 
 
 def fs_ls(fs: Dict[str, Any], user: str, fn: str) -> Tuple[Dict[str, Any], Any]:
-    if fn == "." or fn == "":
+    if fn in (".", ""):
         path = fs["user_paths"][user]
     else:
         path, msg = make_path(fs, user, fn)

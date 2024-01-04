@@ -92,7 +92,7 @@ class YodaSpeakHandler:
     def handle_input(self, message: Dict[str, str], bot_handler: BotHandler) -> None:
         original_content = message["content"]
 
-        if self.is_help(original_content) or (original_content == ""):
+        if self.is_help(original_content) or original_content == "":
             bot_handler.send_reply(message, HELP_MESSAGE)
 
         else:
@@ -124,10 +124,7 @@ class YodaSpeakHandler:
     def is_help(self, original_content: str) -> bool:
         # gets rid of whitespace around the edges, so that they aren't a problem in the future
         message_content = original_content.strip()
-        if message_content == "help":
-            return True
-        else:
-            return False
+        return message_content == "help"
 
 
 handler_class = YodaSpeakHandler

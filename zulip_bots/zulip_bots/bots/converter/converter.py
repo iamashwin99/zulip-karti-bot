@@ -11,9 +11,10 @@ from zulip_bots.lib import BotHandler
 def is_float(value: Any) -> bool:
     try:
         float(value)
-        return True
     except ValueError:
         return False
+
+    return True
 
 
 # Rounds the number 'x' to 'digits' significant digits.
@@ -57,15 +58,14 @@ def get_bot_converter_response(message: Dict[str, str], bot_handler: BotHandler)
     content = message["content"]
 
     words = content.lower().split()
-    convert_indexes = [i for i, word in enumerate(words) if word == "@convert"]
-    convert_indexes = [-1] + convert_indexes
+    convert_indexes = [-1, *(i for i, word in enumerate(words) if word == "@convert")]
     results = []
 
     for convert_index in convert_indexes:
-        if (convert_index + 1) < len(words) and words[convert_index + 1] == "help":
+        if convert_index + 1 < len(words) and words[convert_index + 1] == "help":
             results.append(utils.HELP_MESSAGE)
             continue
-        if (convert_index + 3) < len(words):
+        if convert_index + 3 < len(words):
             number = words[convert_index + 1]
             unit_from = utils.ALIASES.get(words[convert_index + 2], words[convert_index + 2])
             unit_to = utils.ALIASES.get(words[convert_index + 3], words[convert_index + 3])
@@ -87,8 +87,8 @@ def get_bot_converter_response(message: Dict[str, str], bot_handler: BotHandler)
                     exponent -= exp
                     unit_to = unit_to[len(key) :]
 
-            uf_to_std = utils.UNITS.get(unit_from, [])  # type: List[Any]
-            ut_to_std = utils.UNITS.get(unit_to, [])  # type: List[Any]
+            uf_to_std: List[Any] = utils.UNITS.get(unit_from, [])
+            ut_to_std: List[Any] = utils.UNITS.get(unit_to, [])
 
             if not uf_to_std:
                 results.append("`" + unit_from + "` is not a valid unit. " + utils.QUICK_HELP)
@@ -124,9 +124,7 @@ def get_bot_converter_response(message: Dict[str, str], bot_handler: BotHandler)
             number_res = round_to(number_res, 7)
 
             results.append(
-                "{} {} = {} {}".format(
-                    number, words[convert_index + 2], number_res, words[convert_index + 3]
-                )
+                f"{number} {words[convert_index + 2]} = {number_res} {words[convert_index + 3]}"
             )
 
         else:
@@ -134,7 +132,7 @@ def get_bot_converter_response(message: Dict[str, str], bot_handler: BotHandler)
 
     new_content = ""
     for idx, result in enumerate(results, 1):
-        new_content += ((str(idx) + ". conversion: ") if len(results) > 1 else "") + result + "\n"
+        new_content += (str(idx) + ". conversion: " if len(results) > 1 else "") + result + "\n"
 
     return new_content
 

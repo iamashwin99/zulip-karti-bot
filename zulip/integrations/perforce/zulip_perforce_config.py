@@ -14,6 +14,7 @@ ZULIP_IGNORE_MISSING_STREAM = False
 # P4_WEB = "https://p4web.example.com"
 P4_WEB: Optional[str] = None
 
+
 # commit_notice_destination() lets you customize where commit notices
 # are sent to with the full power of a Python function.
 #
@@ -30,11 +31,8 @@ P4_WEB: Optional[str] = None
 # * subject "change_root"
 def commit_notice_destination(path: str, changelist: int) -> Optional[Dict[str, str]]:
     dirs = path.split("/")
-    if len(dirs) >= 4 and dirs[3] not in ("*", "..."):
-        directory = dirs[3]
-    else:
-        # No subdirectory, so just use "depot"
-        directory = dirs[2]
+    # If no subdirectory, just use "depot"
+    directory = dirs[3] if len(dirs) >= 4 and dirs[3] not in ("*", "...") else dirs[2]
 
     if directory not in ["evil-master-plan", "my-super-secret-repository"]:
         return dict(stream=f"{directory}-commits", subject=path)

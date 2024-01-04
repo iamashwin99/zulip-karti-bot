@@ -1,6 +1,8 @@
 from typing import Optional
 from unittest.mock import patch
 
+from typing_extensions import override
+
 from zulip_bots.test_lib import BotTestCase, DefaultTests
 
 
@@ -26,12 +28,12 @@ class TestWeatherBot(BotTestCase, DefaultTests):
                 self.verify_reply(message, response)
 
     # Override default function in BotTestCase
+    @override
     def test_bot_responds_to_empty_message(self) -> None:
         with patch("requests.get"):
             self._test("", self.help_content)
 
     def test_bot(self) -> None:
-
         # City query
         bot_response = "Weather in New York, US:\n71.33 F / 21.85 C\nMist"
         self._test("New York", bot_response, "test_only_city")

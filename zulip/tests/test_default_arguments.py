@@ -1,9 +1,6 @@
-#!/usr/bin/env python3
-
 import argparse
 import io
 import os
-import unittest
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -41,10 +38,5 @@ Zulip API configuration:
         expanded_test_path = os.path.abspath(os.path.expanduser(test_path))
         self.assertEqual(
             str(cm.exception),
-            "api_key or email not specified and "
-            "file {} does not exist".format(expanded_test_path),
+            f"api_key or email not specified and file {expanded_test_path} does not exist",
         )
-
-
-if __name__ == "__main__":
-    unittest.main()

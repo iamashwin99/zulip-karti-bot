@@ -5,6 +5,7 @@ from typing import Dict, Optional
 ZULIP_USER = "openshift-bot@example.com"
 ZULIP_API_KEY = "0123456789abcdef0123456789abcdef"
 
+
 # deployment_notice_destination() lets you customize where deployment notices
 # are sent to with the full power of a Python function.
 #
@@ -51,7 +52,7 @@ def format_deployment_message(
 
 ## If properly installed, the Zulip API should be in your import
 ## path, but if not, set a custom path below
-ZULIP_API_PATH = None  # type: Optional[str]
+ZULIP_API_PATH: Optional[str] = None
 
 # Set this to your Zulip server's API URI
 ZULIP_SITE = "https://zulip.example.com"

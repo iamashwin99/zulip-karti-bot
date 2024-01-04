@@ -12,16 +12,14 @@ from typing import Iterator
 def get_bot_paths() -> Iterator[str]:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     bots_dir = os.path.join(current_dir, "bots")
-    bots_subdirs = map(lambda d: os.path.abspath(d), glob.glob(bots_dir + "/*"))
-    paths = filter(lambda d: os.path.isdir(d), bots_subdirs)
-    return paths
+    return (os.path.abspath(d) for d in glob.glob(bots_dir + "/*/"))
 
 
 def provision_bot(path_to_bot: str, force: bool) -> None:
     req_path = os.path.join(path_to_bot, "requirements.txt")
     if os.path.isfile(req_path):
         bot_name = os.path.basename(path_to_bot)
-        logging.info(f"Installing dependencies for {bot_name}...")
+        logging.info("Installing dependencies for %s...", bot_name)
 
         # pip install -r $BASEDIR/requirements.txt -t $BASEDIR/bot_dependencies --quiet
         rcode = subprocess.call(["pip", "install", "-r", req_path])

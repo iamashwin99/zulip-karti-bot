@@ -7,6 +7,7 @@ import signal
 import sys
 import time
 from contextlib import contextmanager
+from pathlib import Path
 from typing import IO, Any, Dict, Iterator, List, Optional, Set
 
 from typing_extensions import Protocol
@@ -14,7 +15,7 @@ from typing_extensions import Protocol
 from zulip import Client, ZulipError
 
 
-class NoBotConfigException(Exception):
+class NoBotConfigError(Exception):
     pass
 
 
@@ -53,7 +54,7 @@ class RateLimit:
     def __init__(self, message_limit: int, interval_limit: int) -> None:
         self.message_limit = message_limit
         self.interval_limit = interval_limit
-        self.message_list = []  # type: List[float]
+        self.message_list: List[float] = []
         self.error_message = "-----> !*!*!*MESSAGE RATE LIMIT REACHED, EXITING*!*!*! <-----\n"
         "Is your bot trapped in an infinite loop by reacting to its own messages?"
 
@@ -145,7 +146,7 @@ class StateHandler:
         self.state_[key] = self.marshal(value)
         response = self._client.update_storage({"storage": {key: self.state_[key]}})
         if response["result"] != "success":
-            raise StateHandlerError(f"Error updating state: {str(response)}")
+            raise StateHandlerError(f"Error updating state: {response}")
 
     def get(self, key: str) -> Any:
         if key in self.state_:
@@ -176,7 +177,6 @@ def use_storage(storage: BotStorage, keys: List[str]) -> Iterator[BotStorage]:
 
 
 class BotHandler(Protocol):
-
     user_id: int
     email: str
     full_name: str
@@ -213,8 +213,8 @@ class ExternalBotHandler:
     def __init__(
         self,
         client: Client,
-        root_dir: str,
-        bot_details: Dict[str, Any],
+        root_dir: Optional[str],
+        bot_details: Optional[Dict[str, Any]],
         bot_config_file: Optional[str] = None,
         bot_config_parser: Optional[configparser.ConfigParser] = None,
     ) -> None:
@@ -223,25 +223,21 @@ class ExternalBotHandler:
             user_profile = client.get_profile()
         except ZulipError as e:
             print(
-                """
-                ERROR: {}
+                f"""
+                ERROR: {e}
 
                 Have you not started the server?
                 Or did you mis-specify the URL?
-                """.format(
-                    e
-                )
+                """
             )
             sys.exit(1)
 
         if user_profile.get("result") == "error":
             msg = user_profile.get("msg", "unknown")
             print(
+                f"""
+                ERROR: {msg}
                 """
-                ERROR: {}
-                """.format(
-                    msg
-                )
             )
             sys.exit(1)
 
@@ -324,24 +320,22 @@ class ExternalBotHandler:
                 # on setting up the configuration specfic to this bot.
                 # And then `run.py` should also catch exceptions on how
                 # to specify the file in the command line.
-                raise NoBotConfigException(bot_name)
+                raise NoBotConfigError(bot_name)
 
             if bot_name not in self.bot_config_file:
                 print(
-                    """
+                    f"""
                     WARNING!
 
-                    {} does not adhere to the
+                    {self.bot_config_file} does not adhere to the
                     file naming convention, and it could be a
                     sign that you passed in the
                     wrong third-party configuration file.
 
-                    The suggested name is {}.conf
+                    The suggested name is {bot_name}.conf
 
                     We will proceed anyway.
-                    """.format(
-                        self.bot_config_file, bot_name
-                    )
+                    """
                 )
 
             # We expect the caller to pass in None if the user does
@@ -369,14 +363,15 @@ class ExternalBotHandler:
         return self._client.upload_file(file)
 
     def open(self, filepath: str) -> IO[str]:
+        assert self._root_dir is not None
         filepath = os.path.normpath(filepath)
         abs_filepath = os.path.join(self._root_dir, filepath)
         if abs_filepath.startswith(self._root_dir):
-            return open(abs_filepath)
+            return open(abs_filepath)  # noqa: SIM115
         else:
             raise PermissionError(
-                'Cannot open file "{}". Bots may only access '
-                "files in their local directory.".format(abs_filepath)
+                f'Cannot open file "{abs_filepath}". Bots may only access '
+                "files in their local directory."
             )
 
     def quit(self, message: str = "") -> None:
@@ -412,7 +407,7 @@ def is_private_message_but_not_group_pm(
     zulip/zulip project, so refactor with care.  See the comments in
     extract_query_without_mention.
     """
-    if not message_dict["type"] == "private":
+    if message_dict["type"] != "private":
         return False
     is_message_from_self = current_user.user_id == message_dict["sender_id"]
     recipients = [
@@ -422,7 +417,7 @@ def is_private_message_but_not_group_pm(
 
 
 def display_config_file_errors(error_msg: str, config_file: str) -> None:
-    file_contents = open(config_file).read()
+    file_contents = Path(config_file).read_text()
     print(f"\nERROR: {config_file} seems to be broken:\n\n{file_contents}")
     print(f"\nMore details here:\n\n{error_msg}\n")
 
@@ -440,8 +435,8 @@ def prepare_message_handler(bot: str, bot_handler: BotHandler, bot_lib_module: A
 def run_message_handler_for_bot(
     lib_module: Any,
     quiet: bool,
-    config_file: str,
-    bot_config_file: str,
+    config_file: Optional[str],
+    bot_config_file: Optional[str],
     bot_name: str,
     bot_source: str,
 ) -> Any:
@@ -465,6 +460,7 @@ def run_message_handler_for_bot(
     try:
         client = Client(config_file=config_file, client=client_name)
     except configparser.Error as e:
+        assert config_file is not None
         display_config_file_errors(str(e), config_file)
         sys.exit(1)
 

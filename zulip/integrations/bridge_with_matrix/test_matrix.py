@@ -5,10 +5,11 @@ import sys
 from contextlib import contextmanager
 from subprocess import PIPE, Popen
 from tempfile import mkdtemp
-from typing import Any, Awaitable, Callable, Iterator, List
+from typing import Any, Awaitable, Callable, Final, Iterator, List
 from unittest import TestCase, mock
 
 import nio
+from typing_extensions import override
 
 from .matrix_bridge import MatrixToZulip, ZulipToMatrix, read_configuration
 
@@ -41,7 +42,7 @@ topic = matrix
 ZULIP_MESSAGE_TEMPLATE: str = "**{username}** [{uid}]: {message}"
 
 
-# For Python 3.6 compatibility.
+# For Python 3.7 compatibility.
 # (Since 3.8, there is unittest.IsolatedAsyncioTestCase!)
 # source: https://stackoverflow.com/a/46324983
 def async_test(coro: Callable[..., Awaitable[Any]]) -> Callable[..., Any]:
@@ -65,7 +66,7 @@ def new_temp_dir() -> Iterator[str]:
 class MatrixBridgeScriptTests(TestCase):
     def output_from_script(self, options: List[str]) -> List[str]:
         popen = Popen(
-            [sys.executable, script] + options, stdin=PIPE, stdout=PIPE, universal_newlines=True
+            [sys.executable, script, *options], stdin=PIPE, stdout=PIPE, universal_newlines=True
         )
         return popen.communicate()[0].strip().split("\n")
 
@@ -117,11 +118,7 @@ class MatrixBridgeScriptTests(TestCase):
             )
             self.assertEqual(
                 output_lines,
-                [
-                    "Wrote sample configuration to '{}' using zuliprc file '{}'".format(
-                        path, zuliprc_path
-                    )
-                ],
+                [f"Wrote sample configuration to '{path}' using zuliprc file '{zuliprc_path}'"],
             )
 
             with open(path) as sample_file:
@@ -142,11 +139,7 @@ class MatrixBridgeScriptTests(TestCase):
             )
             self.assertEqual(
                 output_lines,
-                [
-                    "Could not write sample config: Zuliprc file '{}' does not exist.".format(
-                        zuliprc_path
-                    )
-                ],
+                [f"Could not write sample config: Zuliprc file '{zuliprc_path}' does not exist."],
             )
 
     def test_parse_multiple_bridges(self) -> None:
@@ -183,6 +176,7 @@ class MatrixBridgeMatrixToZulipTests(TestCase):
     room = mock.MagicMock()
     room.user_name = lambda _: "John Smith"
 
+    @override
     def setUp(self) -> None:
         self.matrix_to_zulip = mock.MagicMock()
         self.matrix_to_zulip.get_message_content_from_event = (
@@ -215,13 +209,13 @@ class MatrixBridgeMatrixToZulipTests(TestCase):
 
 class MatrixBridgeZulipToMatrixTests(TestCase):
     room = mock.MagicMock()
-    valid_zulip_config = dict(
+    valid_zulip_config: Final = dict(
         stream="some stream",
         topic="some topic",
         email="some@email",
         bridges={("some stream", "some topic"): room},
     )
-    valid_msg = dict(
+    valid_msg: Final = dict(
         sender_email="John@Smith.smith",  # must not be equal to config:email
         sender_id=42,
         type="stream",  # Can only mirror Zulip streams
@@ -229,6 +223,7 @@ class MatrixBridgeZulipToMatrixTests(TestCase):
         subject=valid_zulip_config["topic"],
     )
 
+    @override
     def setUp(self) -> None:
         self.zulip_to_matrix = mock.MagicMock()
         self.zulip_to_matrix.zulip_config = self.valid_zulip_config

@@ -1,13 +1,16 @@
+from typing import Final
 from unittest.mock import patch
 
 from requests.exceptions import ConnectionError
+from typing_extensions import override
 
-from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler, get_bot_message_handler
+from zulip_bots.test_file_utils import get_bot_message_handler
+from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler
 
 
 class TestBeeminderBot(BotTestCase, DefaultTests):
     bot_name = "beeminder"
-    normal_config = {"auth_token": "XXXXXX", "username": "aaron", "goalname": "goal"}
+    normal_config: Final = {"auth_token": "XXXXXX", "username": "aaron", "goalname": "goal"}
 
     help_message = """
 You can add datapoints towards your beeminder goals \
@@ -19,6 +22,7 @@ following the syntax shown below :smile:.\n \
 \n* `comment`**:** Add a comment [**NOTE:** Optional field, default is *None*]\
 """
 
+    @override
     def test_bot_responds_to_empty_message(self) -> None:
         with self.mock_config_info(self.normal_config), self.mock_http_conversation(
             "test_valid_auth_token"
@@ -78,9 +82,7 @@ right now.\nPlease try again later",
             {"auth_token": "someInvalidKey", "username": "aaron", "goalname": "goal"}
         ), patch("requests.get", side_effect=ConnectionError()), self.mock_http_conversation(
             "test_invalid_when_handle_message"
-        ), patch(
-            "logging.exception"
-        ):
+        ), patch("logging.exception"):
             self.verify_reply("5", "Error. Check your key!")
 
     def test_error(self) -> None:
@@ -98,7 +100,7 @@ right now.\nPlease try again later",
         with self.mock_config_info(
             {"auth_token": "someInvalidKey", "username": "aaron", "goalname": "goal"}
         ), self.mock_http_conversation("test_invalid_when_initialize"), self.assertRaises(
-            bot_handler.BotQuitException
+            bot_handler.BotQuitError
         ):
             bot.initialize(bot_handler)
 

@@ -2,7 +2,7 @@
 
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Collection, Dict, List
 
 import simple_salesforce
 
@@ -31,7 +31,7 @@ login_url = "https://login.salesforce.com/"
 def get_help_text() -> str:
     command_text = ""
     for command in commands:
-        if "template" in command.keys() and "description" in command.keys():
+        if "template" in command and "description" in command:
             command_text += "**{}**: {}\n".format(
                 "{} [arguments]".format(command["template"]), command["description"]
             )
@@ -43,12 +43,12 @@ def get_help_text() -> str:
 
 def format_result(
     result: Dict[str, Any],
-    exclude_keys: List[str] = [],
-    force_keys: List[str] = [],
+    exclude_keys: Collection[str] = [],
+    force_keys: Collection[str] = [],
     rank_output: bool = False,
     show_all_keys: bool = False,
 ) -> str:
-    exclude_keys += ["Name", "attributes", "Id"]
+    exclude_keys = {*exclude_keys, "Name", "attributes", "Id"}
     output = ""
     if result["totalSize"] == 0:
         return "No records found."
@@ -78,7 +78,7 @@ def query_salesforce(
 ) -> str:
     arg = arg.strip()
     qarg = arg.split(" -", 1)[0]
-    split_args = []  # type: List[str]
+    split_args: List[str] = []
     raw_arg = ""
     if len(arg.split(" -", 1)) > 1:
         raw_arg = " -" + arg.split(" -", 1)[1]
@@ -88,25 +88,25 @@ def query_salesforce(
     limit = re_limit.search(raw_arg)
     if limit:
         limit_num = int(limit.group().rsplit(" ", 1)[1])
-        logging.info(f"Searching with limit {limit_num}")
+        logging.info("Searching with limit %d", limit_num)
     query = default_query
-    if "query" in command.keys():
+    if "query" in command:
         query = command["query"]
     object_type = object_types[command["object"]]
     res = salesforce.query(
         query.format(object_type["fields"], object_type["table"], qarg, limit_num)
     )
-    exclude_keys = []  # type: List[str]
-    if "exclude_keys" in command.keys():
+    exclude_keys: List[str] = []
+    if "exclude_keys" in command:
         exclude_keys = command["exclude_keys"]
-    force_keys = []  # type: List[str]
-    if "force_keys" in command.keys():
+    force_keys: List[str] = []
+    if "force_keys" in command:
         force_keys = command["force_keys"]
     rank_output = False
-    if "rank_output" in command.keys():
+    if "rank_output" in command:
         rank_output = command["rank_output"]
     show_all_keys = "show" in split_args
-    if "show_all_keys" in command.keys():
+    if "show_all_keys" in command:
         show_all_keys = command["show_all_keys"] or "show" in split_args
     return format_result(
         res,
@@ -144,7 +144,7 @@ class SalesforceHandler:
 
     def get_salesforce_response(self, content: str) -> str:
         content = content.strip()
-        if content == "" or content == "help":
+        if content in ("", "help"):
             return get_help_text()
         if content.startswith("http") and "force" in content:
             return get_salesforce_link_details(content, self.sf)
@@ -152,8 +152,8 @@ class SalesforceHandler:
             for command_keyword in command["commands"]:
                 if content.startswith(command_keyword):
                     args = content.replace(command_keyword, "").strip()
-                    if args is not None and args != "":
-                        if "callback" in command.keys():
+                    if args != "":
+                        if "callback" in command:
                             return command["callback"](args, self.sf, command)
                         else:
                             return query_salesforce(args, self.sf, command)

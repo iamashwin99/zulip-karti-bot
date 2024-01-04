@@ -13,6 +13,7 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytz
 import requests
@@ -22,7 +23,7 @@ try:
 except ImportError as e:
     print(e, file=sys.stderr)
     print("Please install the python-dateutil package.", file=sys.stderr)
-    exit(1)
+    sys.exit(1)
 
 sys.path.insert(0, os.path.dirname(__file__))
 import zulip_codebase_config as config
@@ -75,8 +76,8 @@ def make_api_call(path: str) -> Optional[List[Dict[str, Any]]]:
         logging.error("Bad authorization from Codebase. Please check your credentials")
         sys.exit(-1)
     else:
-        logging.warn(
-            f"Found non-success response status code: {response.status_code} {response.text}"
+        logging.warning(
+            "Found non-success response status code: %s %s", response.status_code, response.text
         )
         return None
 
@@ -147,10 +148,7 @@ def handle_event(event: Dict[str, Any]) -> None:
         if assignee is None:
             assignee = "no one"
         subject = f"#{num}: {name}"
-        content = (
-            """%s created a new ticket [#%s](%s) priority **%s** assigned to %s:\n\n~~~ quote\n %s"""
-            % (actor_name, num, url, priority, assignee, name)
-        )
+        content = f"""{actor_name} created a new ticket [#{num}]({url}) priority **{priority}** assigned to {assignee}:\n\n~~~ quote\n {name}"""
     elif event_type == "ticketing_note":
         stream = config.ZULIP_TICKETS_STREAM_NAME
 
@@ -173,10 +171,7 @@ def handle_event(event: Dict[str, Any]) -> None:
 
         if "status_id" in changes:
             status_change = changes.get("status_id")
-            content += "Status changed from **{}** to **{}**\n\n".format(
-                status_change[0],
-                status_change[1],
-            )
+            content += f"Status changed from **{status_change[0]}** to **{status_change[1]}**\n\n"
     elif event_type == "ticketing_milestone":
         stream = config.ZULIP_TICKETS_STREAM_NAME
 
@@ -199,12 +194,7 @@ def handle_event(event: Dict[str, Any]) -> None:
             url = make_url(f"projects/{project_link}/repositories/{repo_link}/commit/{commit}")
 
             subject = f"{actor_name} commented on {commit}"
-            content = "{} commented on [{}]({}):\n\n~~~ quote\n{}".format(
-                actor_name,
-                commit,
-                url,
-                comment,
-            )
+            content = f"{actor_name} commented on [{commit}]({url}):\n\n~~~ quote\n{comment}"
         else:
             # Otherwise, this is a Discussion item, and handle it
             subj = raw_props.get("subject")
@@ -233,8 +223,7 @@ def handle_event(event: Dict[str, Any]) -> None:
         )
         end_ref_url = make_url(f"projects/{project_link}/repositories/{repo_link}/commit/{end_ref}")
         between_url = make_url(
-            "projects/%s/repositories/%s/compare/%s...%s"
-            % (project_link, repo_link, start_ref, end_ref)
+            f"projects/{project_link}/repositories/{repo_link}/compare/{start_ref}...{end_ref}"
         )
 
         subject = f"Deployment to {environment}"
@@ -258,13 +247,11 @@ def handle_event(event: Dict[str, Any]) -> None:
         # but experimental testing showed that they were all sent as 'push' events
         pass
     elif event_type == "wiki_page":
-        logging.warn("Wiki page notifications not yet implemented")
-    elif event_type == "sprint_creation":
-        logging.warn("Sprint notifications not yet implemented")
-    elif event_type == "sprint_ended":
-        logging.warn("Sprint notifications not yet implemented")
+        logging.warning("Wiki page notifications not yet implemented")
+    elif event_type in ("sprint_creation", "sprint_ended"):
+        logging.warning("Sprint notifications not yet implemented")
     else:
-        logging.info(f"Unknown event type {event_type}, ignoring!")
+        logging.info("Unknown event type %s, ignoring!", event_type)
 
     if subject and content:
         if len(subject) > 60:
@@ -274,9 +261,9 @@ def handle_event(event: Dict[str, Any]) -> None:
             {"type": "stream", "to": stream, "subject": subject, "content": content}
         )
         if res["result"] == "success":
-            logging.info("Successfully sent Zulip with id: {}".format(res["id"]))
+            logging.info("Successfully sent Zulip with id: %s", res["id"])
         else:
-            logging.warn("Failed to send Zulip: {} {}".format(res["result"], res["msg"]))
+            logging.warning("Failed to send Zulip: %s %s", res["result"], res["msg"])
 
 
 # the main run loop for this mirror script
@@ -293,30 +280,29 @@ def run_mirror() -> None:
             since = default_since()
         else:
             since = datetime.fromtimestamp(float(timestamp), tz=pytz.utc)
-    except (ValueError, OSError) as e:
-        logging.warn(f"Could not open resume file: {str(e)}")
+    except (ValueError, OSError):
+        logging.warning("Could not open resume file", exc_info=True)
         since = default_since()
 
     try:
-        sleepInterval = 1
+        sleep_interval = 1
         while True:
             events = make_api_call("activity")
             if events is not None:
-                sleepInterval = 1
+                sleep_interval = 1
                 for event in events[::-1]:
                     timestamp = event.get("event", {}).get("timestamp", "")
                     event_date = dateutil.parser.parse(timestamp)
                     if event_date > since:
                         handle_event(event)
                         since = event_date
-            else:
+            elif sleep_interval < 22:
                 # back off a bit
-                if sleepInterval < 22:
-                    sleepInterval += 4
-            time.sleep(sleepInterval)
+                sleep_interval += 4
+            time.sleep(sleep_interval)
 
     except KeyboardInterrupt:
-        open(config.RESUME_FILE, "w").write(since.strftime("%s"))
+        Path(config.RESUME_FILE).write_text(since.strftime("%s"))
         logging.info("Shutting down Codebase mirror")
 
 
@@ -325,13 +311,15 @@ def check_permissions() -> None:
     # check that the log file can be written
     if config.LOG_FILE:
         try:
-            open(config.LOG_FILE, "w")
+            with open(config.LOG_FILE, "w"):
+                pass
         except OSError as e:
             sys.stderr.write("Could not open up log for writing:")
             sys.stderr.write(str(e))
     # check that the resume file can be written (this creates if it doesn't exist)
     try:
-        open(config.RESUME_FILE, "a+")
+        with open(config.RESUME_FILE, "a+"):
+            pass
     except OSError as e:
         sys.stderr.write(f"Could not open up the file {config.RESUME_FILE} for reading and writing")
         sys.stderr.write(str(e))

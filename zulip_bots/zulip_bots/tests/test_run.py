@@ -1,19 +1,17 @@
-#!/usr/bin/env python3
 import os
 import sys
-import unittest
 from pathlib import Path
 from typing import Optional
 from unittest import TestCase, mock
 from unittest.mock import MagicMock, patch
 
+import importlib_metadata as metadata
+
 import zulip_bots.run
-from zulip_bots.finder import metadata
 from zulip_bots.lib import extract_query_without_mention
 
 
 class TestDefaultArguments(TestCase):
-
     our_dir = os.path.dirname(__file__)
     path_to_bot = os.path.abspath(os.path.join(our_dir, "../bots/giphy/giphy.py"))
     packaged_bot_module = MagicMock(__version__="1.0.0")
@@ -121,11 +119,11 @@ class TestDefaultArguments(TestCase):
         with patch(
             "sys.argv", ["zulip-run-bot", "bot.module.name", "--config-file", "/path/to/config"]
         ):
-            with patch(
-                "importlib.import_module", return_value=mock_bot_module
-            ) as mock_import_module:
-                with patch("zulip_bots.run.run_message_handler_for_bot"):
-                    with patch("zulip_bots.run.exit_gracefully_if_zulip_config_is_missing"):
+            with patch("zulip_bots.run.run_message_handler_for_bot"):
+                with patch("zulip_bots.run.exit_gracefully_if_zulip_config_is_missing"):
+                    with patch(
+                        "importlib.import_module", return_value=mock_bot_module
+                    ) as mock_import_module:
                         zulip_bots.run.main()
                         mock_import_module.assert_called_once_with(bot_module_name)
 
@@ -149,7 +147,3 @@ class TestBotLib(TestCase):
         test_message("nomention", "foo", None)
         test_message("Max Mustermann", "@**Max Mustermann** foo", "foo")
         test_message(r"Max (Mustermann)#(*$&12]\]", r"@**Max (Mustermann)#(*$&12]\]** foo", "foo")
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -14,7 +14,7 @@ ANSWERS = {
 }
 
 
-class InvalidAnswerException(Exception):
+class InvalidAnswerError(Exception):
     pass
 
 
@@ -34,8 +34,8 @@ class IncidentHandler:
             start_new_incident(query, message, bot_handler)
         elif query.startswith("answer "):
             try:
-                (ticket_id, answer) = parse_answer(query)
-            except InvalidAnswerException:
+                ticket_id, answer = parse_answer(query)
+            except InvalidAnswerError:
                 bot_response = "Invalid answer format"
                 bot_handler.send_reply(message, bot_response)
                 return
@@ -63,7 +63,7 @@ def start_new_incident(query: str, message: Dict[str, Any], bot_handler: BotHand
 def parse_answer(query: str) -> Tuple[str, str]:
     m = re.match(r"answer\s+(TICKET....)\s+(.)", query)
     if not m:
-        raise InvalidAnswerException()
+        raise InvalidAnswerError
 
     ticket_id = m.group(1)
 
@@ -74,7 +74,7 @@ def parse_answer(query: str) -> Tuple[str, str]:
 
     answer = m.group(2).upper()
     if answer not in "1234":
-        raise InvalidAnswerException()
+        raise InvalidAnswerError
 
     return (ticket_id, ANSWERS[answer])
 
@@ -82,10 +82,10 @@ def parse_answer(query: str) -> Tuple[str, str]:
 def generate_ticket_id(storage: Any) -> str:
     try:
         incident_num = storage.get("ticket_id")
-    except (KeyError):
+    except KeyError:
         incident_num = 0
     incident_num += 1
-    incident_num = incident_num % (1000)
+    incident_num = incident_num % 1000
     storage.put("ticket_id", incident_num)
     ticket_id = "TICKET%04d" % (incident_num,)
     return ticket_id
@@ -124,26 +124,15 @@ def format_incident_for_widget(ticket_id: str, incident: Dict[str, Any]) -> str:
 
 
 def format_incident_for_markdown(ticket_id: str, incident: Dict[str, Any]) -> str:
-    answer_list = "\n".join(
-        "* **{code}** {answer}".format(
-            code=code,
-            answer=ANSWERS[code],
-        )
-        for code in "1234"
-    )
+    answer_list = "\n".join(f"* **{code}** {ANSWERS[code]}" for code in "1234")
     how_to_respond = f"""**reply**: answer {ticket_id} <code>"""
 
-    content = """
+    content = f"""
 Incident: {incident}
-Q: {question}
+Q: {QUESTION}
 
 {answer_list}
-{how_to_respond}""".format(
-        question=QUESTION,
-        answer_list=answer_list,
-        how_to_respond=how_to_respond,
-        incident=incident,
-    )
+{how_to_respond}"""
     return content
 
 

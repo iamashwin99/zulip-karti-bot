@@ -1,12 +1,15 @@
+from typing import Final
 from unittest.mock import patch
 
-from zulip_bots.test_file_utils import read_bot_fixture_data
-from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler, get_bot_message_handler
+from typing_extensions import override
+
+from zulip_bots.test_file_utils import get_bot_message_handler, read_bot_fixture_data
+from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler
 
 
 class TestTwitpostBot(BotTestCase, DefaultTests):
     bot_name = "twitpost"
-    mock_config = {
+    mock_config: Final = {
         "consumer_key": "abcdefghijklmnopqrstuvwxy",
         "consumer_secret": "aabbccddeeffgghhiijjkkllmmnnooppqqrrssttuuvvwwxxyy",
         "access_token": "123456789012345678-ABCDefgh1234afdsa678lKj6gHhslsi",
@@ -14,6 +17,7 @@ class TestTwitpostBot(BotTestCase, DefaultTests):
     }
     api_response = read_bot_fixture_data("twitpost", "api_response")
 
+    @override
     def test_bot_usage(self) -> None:
         bot = get_bot_message_handler(self.bot_name)
         bot_handler = StubBotHandler()
@@ -23,6 +27,7 @@ class TestTwitpostBot(BotTestCase, DefaultTests):
 
         self.assertIn("This bot posts on twitter from zulip chat itself", bot.usage())
 
+    @override
     def test_bot_responds_to_empty_message(self) -> None:
         with self.mock_config_info(self.mock_config):
             self.verify_reply("", "Please check help for usage.")

@@ -1,6 +1,6 @@
 import logging
 import random
-from typing import Dict, Optional
+from typing import Dict, Final, Optional
 
 import requests
 
@@ -18,7 +18,7 @@ class XkcdHandler:
     commands.
     """
 
-    META = {
+    META: Final = {
         "name": "XKCD",
         "description": "Fetches comic strips from https://xkcd.com.",
     }
@@ -62,11 +62,11 @@ def get_xkcd_bot_response(message: Dict[str, str], quoted_name: str) -> str:
 
     commands_help = (
         "%s"
-        "\n* `{0} help` to show this help message."
-        "\n* `{0} latest` to fetch the latest comic strip from xkcd."
-        "\n* `{0} random` to fetch a random comic strip from xkcd."
-        "\n* `{0} <comic id>` to fetch a comic strip based on `<comic id>` "
-        "e.g `{0} 1234`.".format(quoted_name)
+        f"\n* `{quoted_name} help` to show this help message."
+        f"\n* `{quoted_name} latest` to fetch the latest comic strip from xkcd."
+        f"\n* `{quoted_name} random` to fetch a random comic strip from xkcd."
+        f"\n* `{quoted_name} <comic id>` to fetch a comic strip based on `<comic id>` "
+        f"e.g `{quoted_name} 1234`."
     )
 
     try:
@@ -84,7 +84,9 @@ def get_xkcd_bot_response(message: Dict[str, str], quoted_name: str) -> str:
         logging.exception("Connection error occurred when trying to connect to xkcd server")
         return "Sorry, I cannot process your request right now, please try again later!"
     except XkcdNotFoundError:
-        logging.exception(f"XKCD server responded 404 when trying to fetch comic with id {command}")
+        logging.exception(
+            "XKCD server responded 404 when trying to fetch comic with id %s", command
+        )
         return f"Sorry, there is likely no xkcd comic strip with id: #{command}"
     else:
         return "#{}: **{}**\n[{}]({})".format(
@@ -104,23 +106,23 @@ def fetch_xkcd_query(mode: int, comic_id: Optional[str] = None) -> Dict[str, str
             latest = requests.get(LATEST_XKCD_URL)
 
             if latest.status_code != 200:
-                raise XkcdServerError()
+                raise XkcdServerError
 
             latest_id = latest.json()["num"]
-            random_id = random.randint(1, latest_id)
+            random_id = random.randint(1, latest_id)  # noqa: S311
             url = XKCD_TEMPLATE_URL % (str(random_id),)
 
         elif mode == XkcdBotCommand.COMIC_ID:  # Fetch specific comic strip by id number.
             if comic_id is None:
-                raise Exception("Missing comic_id argument")
+                raise TypeError("Missing comic_id argument")
             url = XKCD_TEMPLATE_URL % (comic_id,)
 
         fetched = requests.get(url)
 
         if fetched.status_code == 404:
-            raise XkcdNotFoundError()
+            raise XkcdNotFoundError
         elif fetched.status_code != 200:
-            raise XkcdServerError()
+            raise XkcdServerError
 
         xkcd_json = fetched.json()
     except requests.exceptions.ConnectionError:

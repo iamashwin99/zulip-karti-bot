@@ -1,29 +1,30 @@
-import html
 import json
 from typing import Any, Dict, Optional, Tuple
 from unittest.mock import patch
 
+from typing_extensions import override
+
 from zulip_bots.bots.trivia_quiz.trivia_quiz import (
-    fix_quotes,
     get_quiz_from_id,
     get_quiz_from_payload,
     handle_answer,
     update_quiz,
 )
 from zulip_bots.request_test_lib import mock_request_exception
-from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler, read_bot_fixture_data
+from zulip_bots.test_file_utils import read_bot_fixture_data
+from zulip_bots.test_lib import BotTestCase, DefaultTests, StubBotHandler
 
 
 class TestTriviaQuizBot(BotTestCase, DefaultTests):
-    bot_name = "trivia_quiz"  # type: str
+    bot_name: str = "trivia_quiz"
 
     new_question_response = (
         "\nQ: Which class of animals are newts members of?\n\n"
-        + "* **A** Amphibian\n"
-        + "* **B** Fish\n"
-        + "* **C** Reptiles\n"
-        + "* **D** Mammals\n"
-        + "**reply**: answer Q001 <letter>"
+        "* **A** Amphibian\n"
+        "* **B** Fish\n"
+        "* **C** Reptiles\n"
+        "* **D** Mammals\n"
+        "**reply**: answer Q001 <letter>"
     )
 
     def get_test_quiz(self) -> Tuple[Dict[str, Any], Any]:
@@ -40,6 +41,7 @@ class TestTriviaQuizBot(BotTestCase, DefaultTests):
         else:
             self.verify_reply(message, response)
 
+    @override
     def test_bot_responds_to_empty_message(self) -> None:
         self._test("", 'type "new" for a new question')
 
@@ -52,17 +54,6 @@ class TestTriviaQuizBot(BotTestCase, DefaultTests):
 
         with mock_request_exception():
             self.verify_reply("new", "Uh-Oh! Trivia service is down.")
-
-    def test_fix_quotes(self) -> None:
-        self.assertEqual(fix_quotes("test &amp; test"), html.unescape("test &amp; test"))
-        print("f")
-        with patch("html.unescape") as mock_html_unescape:
-            mock_html_unescape.side_effect = Exception
-            with self.assertRaises(Exception) as exception:
-                fix_quotes("test")
-            self.assertEqual(
-                str(exception.exception), "Please use python3.4 or later for this bot."
-            )
 
     def test_invalid_answer(self) -> None:
         invalid_replies = ["answer A", "answer A Q10", "answer Q001 K", "answer 001 A"]

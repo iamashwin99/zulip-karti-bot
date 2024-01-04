@@ -27,17 +27,14 @@ from typing import (
 
 import distro
 import requests
-from typing_extensions import Literal
+from typing_extensions import Literal, override
 
-__version__ = "0.8.2"
+__version__ = "0.9.0"
 
 # Ensure the Python version is supported
 assert sys.version_info >= (3, 6)
 
 logger = logging.getLogger(__name__)
-
-# In newer versions, the 'json' attribute is a function, not a property
-requests_json_is_function = callable(requests.Response.json)
 
 API_VERSTRING = "v1/"
 
@@ -125,12 +122,13 @@ class CountingBackoff:
 
 
 class RandomExponentialBackoff(CountingBackoff):
+    @override
     def fail(self) -> None:
         super().fail()
         # Exponential growth with ratio sqrt(2); compute random delay
         # between x and 2x where x is growing exponentially
         delay_scale = int(2 ** (self.number_of_retries / 2.0 - 1)) + 1
-        delay = min(delay_scale + random.randint(1, delay_scale), self.delay_cap)
+        delay = min(delay_scale + random.randint(1, delay_scale), self.delay_cap)  # noqa: S311
         message = f"Sleeping for {delay}s [max {delay_scale * 2}] before retrying."
         try:
             logger.warning(message)
@@ -148,14 +146,13 @@ def add_default_arguments(
     patch_error_handling: bool = True,
     allow_provisioning: bool = False,
 ) -> argparse.ArgumentParser:
-
     if patch_error_handling:
 
         def custom_error_handling(self: argparse.ArgumentParser, message: str) -> None:
             self.print_help(sys.stderr)
             self.exit(2, f"{self.prog}: error: {message}\n")
 
-        parser.error = types.MethodType(custom_error_handling, parser)  # type: ignore # patching function
+        parser.error = types.MethodType(custom_error_handling, parser)  # type: ignore[method-assign] # patching function
 
     if allow_provisioning:
         parser.add_argument(
@@ -286,7 +283,6 @@ def generate_option_group(parser: optparse.OptionParser, prefix: str = "") -> op
 
 
 def init_from_options(options: Any, client: Optional[str] = None) -> "Client":
-
     if getattr(options, "provision", False):
         requirements_path = os.path.abspath(os.path.join(sys.path[0], "requirements.txt"))
         try:
@@ -418,8 +414,8 @@ class Client:
                 if insecure is None:
                     raise ZulipError(
                         "The ZULIP_ALLOW_INSECURE environment "
-                        "variable is set to '{}', it must be "
-                        "'true' or 'false'".format(insecure_setting)
+                        f"variable is set to '{insecure_setting}', it must be "
+                        "'true' or 'false'"
                     )
         if config_file is None:
             config_file = get_default_config_filename()
@@ -449,10 +445,8 @@ class Client:
 
                 if insecure is None:
                     raise ZulipError(
-                        "insecure is set to '{}', it must be "
-                        "'true' or 'false' if it is used in {}".format(
-                            insecure_setting, config_file
-                        )
+                        f"insecure is set to '{insecure_setting}', it must be "
+                        f"'true' or 'false' if it is used in {config_file}"
                     )
 
         elif None in (api_key, email):
@@ -487,7 +481,7 @@ class Client:
                 "certificate will not be validated, making the "
                 "HTTPS connection potentially insecure"
             )
-            self.tls_verification = False  # type: Union[bool, str]
+            self.tls_verification: Union[bool, str] = False
         elif cert_bundle is not None:
             if not os.path.isfile(cert_bundle):
                 raise ConfigNotFoundError(f"tls bundle '{cert_bundle}' does not exist")
@@ -499,19 +493,17 @@ class Client:
         if client_cert is None:
             if client_cert_key is not None:
                 raise ConfigNotFoundError(
-                    "client cert key '%s' specified, but no client cert public part provided"
-                    % (client_cert_key,)
+                    f"client cert key '{client_cert_key}' specified, but no client cert public part provided"
                 )
         else:  # we have a client cert
             if not os.path.isfile(client_cert):
                 raise ConfigNotFoundError(f"client cert '{client_cert}' does not exist")
-            if client_cert_key is not None:
-                if not os.path.isfile(client_cert_key):
-                    raise ConfigNotFoundError(f"client cert key '{client_cert_key}' does not exist")
+            if client_cert_key is not None and not os.path.isfile(client_cert_key):
+                raise ConfigNotFoundError(f"client cert key '{client_cert_key}' does not exist")
         self.client_cert = client_cert
         self.client_cert_key = client_cert_key
 
-        self.session = None  # type: Optional[requests.Session]
+        self.session: Optional[requests.Session] = None
 
         self.has_connected = False
 
@@ -521,7 +513,6 @@ class Client:
         assert self.zulip_version is not None
 
     def ensure_session(self) -> None:
-
         # Check if the session has been created already, and return
         # immediately if so.
         if self.session:
@@ -530,10 +521,10 @@ class Client:
         # Build a client cert object for requests
         if self.client_cert_key is not None:
             assert self.client_cert is not None  # Otherwise ZulipError near end of __init__
-            client_cert = (
+            client_cert: Union[None, str, Tuple[str, str]] = (
                 self.client_cert,
                 self.client_cert_key,
-            )  # type: Union[None, str, Tuple[str, str]]
+            )
         else:
             client_cert = self.client_cert
 
@@ -563,11 +554,7 @@ class Client:
         elif vendor == "Darwin":
             vendor_version = platform.mac_ver()[0]
 
-        return "{client_name} ({vendor}; {vendor_version})".format(
-            client_name=self.client_name,
-            vendor=vendor,
-            vendor_version=vendor_version,
-        )
+        return f"{self.client_name} ({vendor}; {vendor_version})"
 
     def do_api_query(
         self,
@@ -581,35 +568,27 @@ class Client:
         if files is None:
             files = []
 
-        if longpolling:
-            # When long-polling, set timeout to 90 sec as a balance
-            # between a low traffic rate and a still reasonable latency
-            # time in case of a connection failure.
-            request_timeout = 90.0
-        else:
-            # Otherwise, 15s should be plenty of time.
-            request_timeout = 15.0 if not timeout else timeout
+        # When long-polling, set timeout to 90 sec as a balance
+        # between a low traffic rate and a still reasonable latency
+        # time in case of a connection failure.
+        # Otherwise, 15s should be plenty of time.
+        request_timeout = 90.0 if longpolling else timeout or 15.0
 
-        request = {}
-        req_files = []
+        request = {
+            key: val if isinstance(val, str) else json.dumps(val)
+            for key, val in orig_request.items()
+        }
 
-        for (key, val) in orig_request.items():
-            if isinstance(val, str) or isinstance(val, str):
-                request[key] = val
-            else:
-                request[key] = json.dumps(val)
-
-        for f in files:
-            req_files.append((f.name, f))
+        req_files = [(f.name, f) for f in files]
 
         self.ensure_session()
         assert self.session is not None
 
-        query_state = {
+        query_state: Dict[str, Any] = {
             "had_error_retry": False,
             "request": request,
             "failures": 0,
-        }  # type: Dict[str, Any]
+        }
 
         def error_retry(error_string: str) -> bool:
             if not self.retry_on_errors or query_state["failures"] >= 10:
@@ -617,8 +596,7 @@ class Client:
             if self.verbose:
                 if not query_state["had_error_retry"]:
                     sys.stdout.write(
-                        "zulip API(%s): connection error%s -- retrying."
-                        % (
+                        "zulip API({}): connection error{} -- retrying.".format(
                             url.split(API_VERSTRING, 2)[0],
                             error_string,
                         )
@@ -641,10 +619,7 @@ class Client:
 
         while True:
             try:
-                if method == "GET":
-                    kwarg = "params"
-                else:
-                    kwarg = "data"
+                kwarg = "params" if method == "GET" else "data"
 
                 kwargs = {kwarg: query_state["request"]}
 
@@ -662,10 +637,11 @@ class Client:
                 self.has_connected = True
 
                 # On 50x errors, try again after a short sleep
-                if str(res.status_code).startswith("5"):
-                    if error_retry(f" (server {res.status_code})"):
-                        continue
-                    # Otherwise fall through and process the python-requests error normally
+                if str(res.status_code).startswith("5") and error_retry(
+                    f" (server {res.status_code})"
+                ):
+                    continue
+                # Otherwise fall through and process the python-requests error normally
             except (requests.exceptions.Timeout, requests.exceptions.SSLError) as e:
                 # Timeouts are either a Timeout or an SSLError; we
                 # want the later exception handlers to deal with any
@@ -674,7 +650,7 @@ class Client:
                     isinstance(e, requests.exceptions.SSLError)
                     and str(e) != "The read operation timed out"
                 ):
-                    raise UnrecoverableNetworkError("SSL Error")
+                    raise UnrecoverableNetworkError("SSL Error") from e
                 if longpolling:
                     # When longpolling, we expect the timeout to fire,
                     # and the correct response is to just retry
@@ -682,13 +658,15 @@ class Client:
                 else:
                     end_error_retry(False)
                     raise
-            except requests.exceptions.ConnectionError:
+            except requests.exceptions.ConnectionError as e:
                 if not self.has_connected:
                     # If we have never successfully connected to the server, don't
                     # go into retry logic, because the most likely scenario here is
                     # that somebody just hasn't started their server, or they passed
                     # in an invalid site.
-                    raise UnrecoverableNetworkError("cannot connect to server " + self.base_url)
+                    raise UnrecoverableNetworkError(
+                        "cannot connect to server " + self.base_url
+                    ) from e
 
                 if error_retry(""):
                     continue
@@ -699,22 +677,17 @@ class Client:
                 raise
 
             try:
-                if requests_json_is_function:
-                    json_result = res.json()
-                else:
-                    json_result = res.json
+                json_result = res.json()
             except Exception:
-                json_result = None
+                end_error_retry(False)
+                return {
+                    "msg": "Unexpected error from the server",
+                    "result": "http-error",
+                    "status_code": res.status_code,
+                }
 
-            if json_result is not None:
-                end_error_retry(True)
-                return json_result
-            end_error_retry(False)
-            return {
-                "msg": "Unexpected error from the server",
-                "result": "http-error",
-                "status_code": res.status_code,
-            }
+            end_error_retry(True)
+            return json_result
 
     def call_endpoint(
         self,
@@ -728,7 +701,7 @@ class Client:
         if request is None:
             request = dict()
         marshalled_request = {}
-        for (k, v) in request.items():
+        for k, v in request.items():
             if v is not None:
                 marshalled_request[k] = v
         versioned_url = API_VERSTRING + (url if url is not None else "")
@@ -752,7 +725,6 @@ class Client:
             narrow = []
 
         def do_register() -> Tuple[str, int]:
-
             while True:
                 if event_types is None:
                     res = self.register(None, None, **kwargs)
@@ -771,7 +743,7 @@ class Client:
         # making a new long-polling request.
         while True:
             if queue_id is None:
-                (queue_id, last_event_id) = do_register()
+                queue_id, last_event_id = do_register()
 
             try:
                 res = self.get_events(queue_id=queue_id, last_event_id=last_event_id)
@@ -823,6 +795,15 @@ class Client:
 
             for event in res["events"]:
                 last_event_id = max(last_event_id, int(event["id"]))
+
+                if event["type"] == "heartbeat":
+                    # Heartbeat events are sent to clients regardless
+                    # of the client's requested event types, and are
+                    # intended to be an internal part of the Zulip
+                    # longpolling protocol, not something that clients
+                    # need to handle.
+                    continue
+
                 callback(event)
 
     def call_on_each_message(
@@ -841,7 +822,6 @@ class Client:
         return self.call_endpoint(url="messages", method="GET", request=message_filters)
 
     def check_messages_match_narrow(self, **request: Dict[str, Any]) -> Dict[str, Any]:
-
         """
         Example usage:
 
@@ -1036,20 +1016,24 @@ class Client:
             method="GET",
         )
 
-    def add_realm_filter(self, pattern: str, url_format_string: str) -> Dict[str, Any]:
+    def add_realm_filter(self, pattern: str, url_template: str) -> Dict[str, Any]:
         """
         Example usage:
 
-        >>> client.add_realm_filter('#(?P<id>[0-9]+)', 'https://github.com/zulip/zulip/issues/%(id)s')
+        >>> client.add_realm_filter('#(?P<id>[0-9]+)', 'https://github.com/zulip/zulip/issues/{id}')
         {'result': 'success', 'msg': '', 'id': 42}
         """
+        data = {"pattern": pattern}
+        if self.feature_level >= 176:
+            # Starting from feature level 176, we use RFC 6570 compliant URL
+            # templates instead.
+            data["url_template"] = url_template
+        else:
+            data["url_format_string"] = url_template
         return self.call_endpoint(
             url="realm/filters",
             method="POST",
-            request={
-                "pattern": pattern,
-                "url_format_string": url_format_string,
-            },
+            request=data,
         )
 
     def remove_realm_filter(self, filter_id: int) -> Dict[str, Any]:
@@ -1278,7 +1262,6 @@ class Client:
         )
 
     def add_default_stream(self, stream_id: int) -> Dict[str, Any]:
-
         """
         Example usage:
 
@@ -1292,7 +1275,6 @@ class Client:
         )
 
     def get_user_by_id(self, user_id: int, **request: Any) -> Dict[str, Any]:
-
         """
         Example usage:
 
@@ -1306,7 +1288,6 @@ class Client:
         )
 
     def deactivate_user_by_id(self, user_id: int) -> Dict[str, Any]:
-
         """
         Example usage:
 
@@ -1319,7 +1300,6 @@ class Client:
         )
 
     def reactivate_user_by_id(self, user_id: int) -> Dict[str, Any]:
-
         """
         Example usage:
 
@@ -1332,7 +1312,6 @@ class Client:
         )
 
     def update_user_by_id(self, user_id: int, **request: Any) -> Dict[str, Any]:
-
         """
         Example usage:
 
@@ -1399,7 +1378,7 @@ class Client:
 
     def list_subscriptions(self, request: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         logger.warning(
-            "list_subscriptions() is deprecated." " Please use get_subscriptions() instead."
+            "list_subscriptions() is deprecated. Please use get_subscriptions() instead."
         )
         return self.get_subscriptions(request)
 
@@ -1703,7 +1682,7 @@ class Client:
         if message_id is None:
             if propagate_mode != "change_all":
                 raise AttributeError(
-                    "A message_id must be provided if " 'propagate_mode isn\'t "change_all"'
+                    'A message_id must be provided if propagate_mode isn\'t "change_all"'
                 )
 
             # ask the server for the latest message ID in the topic.
@@ -1799,7 +1778,8 @@ if LEGACY_CLIENT_INTERFACE_FROM_SERVER_DOCS_VERSION == "3":
     # This block is support for testing Zulip 3.x, which documents old
     # interfaces for the following functions:
     class LegacyInterfaceClient(Client):
-        def update_user_group_members(self, group_data: Dict[str, Any]) -> Dict[str, Any]:  # type: ignore # Intentional override; see comments above.
+        @override
+        def update_user_group_members(self, group_data: Dict[str, Any]) -> Dict[str, Any]:  # type: ignore[override] # Intentional override; see comments above.
             modern_group_data = group_data.copy()
             group_id = group_data["group_id"]
             del modern_group_data["group_id"]
@@ -1810,7 +1790,7 @@ if LEGACY_CLIENT_INTERFACE_FROM_SERVER_DOCS_VERSION == "3":
             Example usage:
 
             >>> client.get_realm_filters()
-            {'result': 'success', 'msg': '', 'filters': [['#(?P<id>[0-9]+)', 'https://github.com/zulip/zulip/issues/%(id)s', 1]]}
+            {'result': 'success', 'msg': '', 'filters': [['#(?P<id>[0-9]+)', 'https://github.com/zulip/zulip/issues/{id}', 1]]}
             """
             # This interface was removed in 4d482e0ef30297f716885fd8246f4638a856ba3b
             return self.call_endpoint(
@@ -1818,4 +1798,4 @@ if LEGACY_CLIENT_INTERFACE_FROM_SERVER_DOCS_VERSION == "3":
                 method="GET",
             )
 
-    Client = LegacyInterfaceClient  # type: ignore # Intentional override; see comments above.
+    Client = LegacyInterfaceClient  # type: ignore[misc] # Intentional override; see comments above.

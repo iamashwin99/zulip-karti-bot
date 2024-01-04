@@ -15,7 +15,7 @@ class TestMerelsBot(BotTestCase, DefaultTests):
         )
         res = self.get_response(message)
         self.assertEqual(
-            res["content"], "You are not in a game at the moment." " Type `help` for help."
+            res["content"], "You are not in a game at the moment. Type `help` for help."
         )
 
     # FIXME: Add tests for computer moves
@@ -47,8 +47,8 @@ class TestMerelsBot(BotTestCase, DefaultTests):
 
     def test_parse_board(self) -> None:
         board = EMPTY_BOARD
-        expectResponse = EMPTY_BOARD
-        self._test_parse_board(board, expectResponse)
+        expect_response = EMPTY_BOARD
+        self._test_parse_board(board, expect_response)
 
     def test_add_user_to_cache(self):
         self.add_user_to_cache("Name")
@@ -78,7 +78,7 @@ class TestMerelsBot(BotTestCase, DefaultTests):
 
     def _get_game_handlers(self) -> Tuple[Any, Any]:
         bot, bot_handler = self._get_handlers()
-        return bot.model, bot.gameMessageHandler
+        return bot.model, bot.game_message_handler
 
     def _test_parse_board(self, board: str, expected_response: str) -> None:
         model, message_handler = self._get_game_handlers()

@@ -7,22 +7,22 @@ freely import another modules.
 
 import re
 
-from zulip_bots.game_handler import BadMoveException
+from zulip_bots.game_handler import BadMoveError
 
 from . import database, mechanics
 
 COMMAND_PATTERN = re.compile("^(\\w*).*(\\d,\\d).*(\\d,\\d)|^(\\w+).*(\\d,\\d)")
 
 
-def getInfo():
+def get_info():
     """Gets the info on starting the game
 
     :return: Info on how to start the game
     """
-    return "To start a game, mention me and add `create`. A game will start " "in that topic. "
+    return "To start a game, mention me and add `create`. A game will start in that topic. "
 
 
-def getHelp():
+def get_help():
     """Gets the help message
 
     :return: Help message
@@ -43,7 +43,7 @@ def unknown_command():
     :return: A string containing info about available commands
     """
     message = "Unknown command. Available commands: put (v,h), take (v,h), move (v,h) -> (v,h)"
-    raise BadMoveException(message)
+    raise BadMoveError(message)
 
 
 def beat(message, topic_name, merels_storage):
@@ -62,18 +62,15 @@ def beat(message, topic_name, merels_storage):
     if match is None:
         return unknown_command()
     if match.group(1) is not None and match.group(2) is not None and match.group(3) is not None:
-
         responses = ""
         command = match.group(1)
 
         if command.lower() == "move":
-
             p1 = [int(x) for x in match.group(2).split(",")]
             p2 = [int(x) for x in match.group(3).split(",")]
 
             if mechanics.get_take_status(topic_name, merels_storage) == 1:
-
-                raise BadMoveException("Take is required to proceed." " Please try again.\n")
+                raise BadMoveError("Take is required to proceed. Please try again.\n")
 
             responses += mechanics.move_man(topic_name, p1, p2, merels_storage) + "\n"
             no_moves = after_event_checkup(responses, topic_name, merels_storage)
@@ -101,7 +98,7 @@ def beat(message, topic_name, merels_storage):
             responses = ""
 
             if mechanics.get_take_status(topic_name, merels_storage) == 1:
-                raise BadMoveException("Take is required to proceed." " Please try again.\n")
+                raise BadMoveError("Take is required to proceed. Please try again.\n")
             responses += mechanics.put_man(topic_name, p1[0], p1[1], merels_storage) + "\n"
             no_moves = after_event_checkup(responses, topic_name, merels_storage)
 
@@ -120,7 +117,7 @@ def beat(message, topic_name, merels_storage):
             if mechanics.get_take_status(topic_name, merels_storage) == 1:
                 responses += mechanics.take_man(topic_name, p1[0], p1[1], merels_storage) + "\n"
                 if "Failed" in responses:
-                    raise BadMoveException(responses)
+                    raise BadMoveError(responses)
                 mechanics.update_toggle_take_mode(topic_name, merels_storage)
                 no_moves = after_event_checkup(responses, topic_name, merels_storage)
 
@@ -133,7 +130,7 @@ def beat(message, topic_name, merels_storage):
                     same_player_move = no_moves
                 return responses, same_player_move
             else:
-                raise BadMoveException("Taking is not possible.")
+                raise BadMoveError("Taking is not possible.")
         else:
             return unknown_command()
 
@@ -148,7 +145,7 @@ def check_take_mode(response, topic_name, merels_storage):
     :param merels_storage: Merels' storage
     :return: None
     """
-    if not ("Failed" in response):
+    if "Failed" not in response:
         if mechanics.can_take_mode(topic_name, merels_storage):
             mechanics.update_toggle_take_mode(topic_name, merels_storage)
         else:
@@ -165,7 +162,7 @@ def check_any_moves(topic_name, merels_storage):
     """
     if not mechanics.can_make_any_move(topic_name, merels_storage):
         mechanics.update_change_turn(topic_name, merels_storage)
-        return "Cannot make any move on the grid. Switching to " "previous player.\n"
+        return "Cannot make any move on the grid. Switching to previous player.\n"
 
     return ""
 

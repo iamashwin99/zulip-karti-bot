@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
-
 from setuptools import find_packages, setup
 
-ZULIP_BOTS_VERSION = "0.8.2"
+ZULIP_BOTS_VERSION = "0.9.0"
 IS_PYPA_PACKAGE = False
 
 
@@ -34,12 +32,12 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Topic :: Communications :: Chat",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     url="https://www.zulip.org/",
     project_urls={
         "Source": "https://github.com/zulip/python-zulip-api/",
@@ -57,7 +55,7 @@ setup(
         "html2text",
         "lxml",
         "BeautifulSoup4",
-        "typing_extensions",
+        "typing_extensions>=4.5.0",
         'importlib-metadata >= 3.6; python_version  < "3.10"',
     ],
     packages=find_packages(),

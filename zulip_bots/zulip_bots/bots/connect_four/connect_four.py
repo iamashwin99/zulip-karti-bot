@@ -5,15 +5,15 @@ from zulip_bots.game_handler import GameAdapter
 
 
 class ConnectFourMessageHandler:
-    tokens = [":blue_circle:", ":red_circle:"]
+    tokens = (":blue_circle:", ":red_circle:")
 
     def parse_board(self, board: Any) -> str:
         # Header for the top of the board
         board_str = ":one: :two: :three: :four: :five: :six: :seven:"
 
-        for row in range(0, 6):
+        for row in range(6):
             board_str += "\n\n"
-            for column in range(0, 7):
+            for column in range(7):
                 if board[row][column] == 0:
                     board_str += ":white_circle: "
                 elif board[row][column] == 1:
@@ -52,7 +52,7 @@ class ConnectFourBotHandler(GameAdapter):
         )
         move_regex = "(move ([1-7])$)|(([1-7])$)"
         model = ConnectFourModel
-        gameMessageHandler = ConnectFourMessageHandler
+        game_message_handler = ConnectFourMessageHandler
         rules = """Try to get four pieces in row, Diagonals count too!"""
 
         super().__init__(
@@ -61,7 +61,7 @@ class ConnectFourBotHandler(GameAdapter):
             move_help_message,
             move_regex,
             model,
-            gameMessageHandler,
+            game_message_handler,
             rules,
             max_players=2,
         )

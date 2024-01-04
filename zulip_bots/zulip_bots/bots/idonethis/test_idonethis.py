@@ -1,10 +1,12 @@
 from unittest.mock import patch
 
+from typing_extensions import override
+
 from zulip_bots.test_lib import BotTestCase, DefaultTests
 
 
 class TestIDoneThisBot(BotTestCase, DefaultTests):
-    bot_name = "idonethis"  # type: str
+    bot_name: str = "idonethis"
 
     def test_create_entry_default_team(self) -> None:
         with self.mock_config_info(
@@ -44,9 +46,7 @@ class TestIDoneThisBot(BotTestCase, DefaultTests):
             {"api_key": "87654321", "default_team": "testing team 1"}
         ), self.mock_http_conversation("test_401"), patch(
             "zulip_bots.bots.idonethis.idonethis.api_noop"
-        ), patch(
-            "logging.error"
-        ):
+        ), patch("logging.error"):
             self.verify_reply(
                 "list teams",
                 "I can't currently authenticate with idonethis. Can you check that your API key is correct? "
@@ -74,14 +74,14 @@ class TestIDoneThisBot(BotTestCase, DefaultTests):
             {"api_key": "12345678", "default_team": "testing team 1"}
         ), self.mock_http_conversation("test_show_team"), patch(
             "zulip_bots.bots.idonethis.idonethis.get_team_hash", return_value="31415926535"
-        ) as get_team_hashFunction:
+        ) as get_team_hash_function:
             self.verify_reply(
                 "team info testing team 1",
                 "Team Name: testing team 1\n"
                 "ID: `31415926535`\n"
                 "Created at: 2017-12-28T19:12:55.121+11:00",
             )
-            get_team_hashFunction.assert_called_with("testing team 1")
+            get_team_hash_function.assert_called_with("testing team 1")
 
     def test_entries_list(self) -> None:
         with self.mock_config_info(
@@ -112,6 +112,7 @@ class TestIDoneThisBot(BotTestCase, DefaultTests):
                 "  * ID: 72c8241d2218464433268c5abd6625ac104e3d8f",
             )
 
+    @override
     def test_bot_responds_to_empty_message(self) -> None:
         with self.mock_config_info(
             {"api_key": "12345678", "bot_info": "team"}

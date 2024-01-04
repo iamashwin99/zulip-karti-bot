@@ -1,6 +1,5 @@
 import json
 import os
-import unittest
 from collections import OrderedDict
 from importlib import import_module
 from pathlib import Path
@@ -8,7 +7,9 @@ from types import ModuleType
 from typing import Any, Dict
 from unittest import mock
 
-from zulip_bots.finder import metadata
+import importlib_metadata as metadata
+from typing_extensions import override
+
 from zulip_bots.lib import BotHandler
 from zulip_botserver import server
 from zulip_botserver.input_parameters import parse_args
@@ -25,6 +26,7 @@ class BotServerTests(BotServerTestCase):
         def handler_class(self) -> Any:
             return BotServerTests.MockMessageHandler()
 
+    @override
     def setUp(self) -> None:
         # Since initializing Client invokes `get_server_settings` that fails in the test
         # environment, we need to mock it to pretend that there exists a backend.
@@ -49,7 +51,7 @@ class BotServerTests(BotServerTestCase):
                 message={"content": "@**test** test message"},
                 bot_email="helloworld-bot@zulip.com",
                 trigger="mention",
-                token="abcd1234",
+                token="abcd1234",  # noqa: S106
             ),
             expected_response="beep boop",
             check_success=True,
@@ -77,7 +79,7 @@ class BotServerTests(BotServerTestCase):
                 message={"content": "@**test** test message"},
                 bot_email="helloworld-bot@zulip.com",
                 trigger="mention",
-                token="abcd1234",
+                token="abcd1234",  # noqa: S106
             ),
             expected_response="beep boop",
             bots_config=bots_config,
@@ -117,7 +119,7 @@ class BotServerTests(BotServerTestCase):
                 message={"content": "@**test** test message"},
                 bot_email="helloworld-bot@zulip.com",
                 trigger="mention",
-                token="wrongtoken",
+                token="wrongtoken",  # noqa: S106
             ),
             check_success=False,
         )
@@ -125,7 +127,7 @@ class BotServerTests(BotServerTestCase):
     @mock.patch("logging.error")
     @mock.patch("zulip_bots.lib.StateHandler")
     def test_wrong_bot_credentials(
-        self, mock_StateHandler: mock.Mock, mock_LoggingError: mock.Mock
+        self, mock_state_handler: mock.Mock, mock_logging_error: mock.Mock
     ) -> None:
         available_bots = ["nonexistent-bot"]
         bots_config = {
@@ -147,7 +149,7 @@ class BotServerTests(BotServerTestCase):
                     message={"content": "@**test** test message"},
                     bot_email="helloworld-bot@zulip.com",
                     trigger="mention",
-                    token="abcd1234",
+                    token="abcd1234",  # noqa: S106
                 ),
                 bots_config=bots_config,
             )
@@ -270,8 +272,8 @@ class BotServerTests(BotServerTestCase):
         # load invalid file path
         with self.assertRaisesRegex(
             SystemExit,
-            'Error: Bot "{}/zulip_bots/zulip_bots/bots/helloworld.py" doesn\'t exist. '
-            "Please make sure you have set up the botserverrc file correctly.".format(root_dir),
+            f'Error: Bot "{root_dir}/zulip_bots/zulip_bots/bots/helloworld.py" doesn\'t exist. '
+            "Please make sure you have set up the botserverrc file correctly.",
         ):
             path = Path(
                 root_dir, "zulip_bots/zulip_bots/bots/{bot}.py".format(bot="helloworld")
@@ -308,7 +310,3 @@ class BotServerTests(BotServerTestCase):
         mock_app.config.__setitem__.assert_any_call(
             "BOTS_LIB_MODULES", {"packaged_bot": packaged_bot_module}
         )
-
-
-if __name__ == "__main__":
-    unittest.main()

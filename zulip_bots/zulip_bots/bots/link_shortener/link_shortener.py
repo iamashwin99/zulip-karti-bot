@@ -23,7 +23,7 @@ class LinkShortenerHandler:
         self.check_api_key(bot_handler)
 
     def check_api_key(self, bot_handler: BotHandler) -> None:
-        test_request_data = self.call_link_shorten_service("www.youtube.com/watch")  # type: Any
+        test_request_data: Any = self.call_link_shorten_service("www.youtube.com/watch")
         try:
             if self.is_invalid_token_error(test_request_data):
                 bot_handler.quit(
@@ -39,7 +39,7 @@ class LinkShortenerHandler:
         )
 
     def handle_message(self, message: Dict[str, str], bot_handler: BotHandler) -> None:
-        REGEX_STR = (
+        regex_str = (
             r"("
             r"(?:http|https):\/\/"  # This allows for the HTTP or HTTPS
             # protocol.
@@ -48,7 +48,7 @@ class LinkShortenerHandler:
             r")"
         )
 
-        HELP_STR = (
+        help_str = (
             "Mention the link shortener bot in a conversation and "
             "then enter any URLs you want to shorten in the body of "
             "the message."
@@ -57,21 +57,21 @@ class LinkShortenerHandler:
         content = message["content"]
 
         if content.strip() == "help":
-            bot_handler.send_reply(message, HELP_STR)
+            bot_handler.send_reply(message, help_str)
             return
 
-        link_matches = re.findall(REGEX_STR, content)
+        link_matches = re.findall(regex_str, content)
 
         shortened_links = [self.shorten_link(link) for link in link_matches]
         link_pairs = [
-            (link_match + ": " + shortened_link)
+            link_match + ": " + shortened_link
             for link_match, shortened_link in zip(link_matches, shortened_links)
             if shortened_link != ""
         ]
         final_response = "\n".join(link_pairs)
 
         if final_response == "":
-            bot_handler.send_reply(message, "No links found. " + HELP_STR)
+            bot_handler.send_reply(message, "No links found. " + help_str)
             return
 
         bot_handler.send_reply(message, final_response)

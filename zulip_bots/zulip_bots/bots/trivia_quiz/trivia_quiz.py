@@ -2,18 +2,18 @@ import html
 import json
 import random
 import re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 import requests
 
 from zulip_bots.lib import BotHandler
 
 
-class NotAvailableException(Exception):
+class NotAvailableError(Exception):
     pass
 
 
-class InvalidAnswerException(Exception):
+class InvalidAnswerError(Exception):
     pass
 
 
@@ -28,15 +28,15 @@ class TriviaQuizHandler:
         if query == "new":
             try:
                 start_new_quiz(message, bot_handler)
-                return
-            except NotAvailableException:
+            except NotAvailableError:
                 bot_response = "Uh-Oh! Trivia service is down."
                 bot_handler.send_reply(message, bot_response)
-                return
+
+            return
         elif query.startswith("answer"):
             try:
-                (quiz_id, answer) = parse_answer(query)
-            except InvalidAnswerException:
+                quiz_id, answer = parse_answer(query)
+            except InvalidAnswerError:
                 bot_response = "Invalid answer format"
                 bot_handler.send_reply(message, bot_response)
                 return
@@ -75,12 +75,12 @@ def start_new_quiz(message: Dict[str, Any], bot_handler: BotHandler) -> None:
 def parse_answer(query: str) -> Tuple[str, str]:
     m = re.match(r"answer\s+(Q...)\s+(.)", query)
     if not m:
-        raise InvalidAnswerException()
+        raise InvalidAnswerError
 
     quiz_id = m.group(1)
     answer = m.group(2).upper()
     if answer not in "ABCD":
-        raise InvalidAnswerException()
+        raise InvalidAnswerError
 
     return (quiz_id, answer)
 
@@ -92,32 +92,19 @@ def get_trivia_quiz() -> Dict[str, Any]:
 
 
 def get_trivia_payload() -> Dict[str, Any]:
-
     url = "https://opentdb.com/api.php?amount=1&type=multiple"
 
     try:
         data = requests.get(url)
 
-    except requests.exceptions.RequestException:
-        raise NotAvailableException()
+    except requests.exceptions.RequestException as e:
+        raise NotAvailableError from e
 
     if data.status_code != 200:
-        raise NotAvailableException()
+        raise NotAvailableError
 
     payload = data.json()
     return payload
-
-
-def fix_quotes(s: str) -> Optional[str]:
-    # opentdb is nice enough to escape HTML for us, but
-    # we are sending this to code that does that already :)
-    #
-    # Meanwhile Python took until version 3.4 to have a
-    # simple html.unescape function.
-    try:
-        return html.unescape(s)
-    except Exception:
-        raise Exception("Please use python3.4 or later for this bot.")
 
 
 def get_quiz_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -130,14 +117,14 @@ def get_quiz_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     answers[correct_letter] = result["correct_answer"]
     for i in range(3):
         answers[letters[i + 1]] = result["incorrect_answers"][i]
-    answers = {letter: fix_quotes(answer) for letter, answer in answers.items()}
-    quiz = dict(
-        question=fix_quotes(question),
+    answers = {letter: html.unescape(answer) for letter, answer in answers.items()}
+    quiz: Dict[str, Any] = dict(
+        question=html.unescape(question),
         answers=answers,
         answered_options=[],
         pending=True,
         correct_letter=correct_letter,
-    )  # type: Dict[str, Any]
+    )
     return quiz
 
 
@@ -147,7 +134,7 @@ def generate_quiz_id(storage: Any) -> str:
     except (KeyError, TypeError):
         quiz_num = 0
     quiz_num += 1
-    quiz_num = quiz_num % (1000)
+    quiz_num = quiz_num % 1000
     storage.put("quiz_id", quiz_num)
     quiz_id = "Q%03d" % (quiz_num,)
     return quiz_id
@@ -190,24 +177,14 @@ def format_quiz_for_widget(quiz_id: str, quiz: Dict[str, Any]) -> str:
 def format_quiz_for_markdown(quiz_id: str, quiz: Dict[str, Any]) -> str:
     question = quiz["question"]
     answers = quiz["answers"]
-    answer_list = "\n".join(
-        "* **{letter}** {answer}".format(
-            letter=letter,
-            answer=answers[letter],
-        )
-        for letter in "ABCD"
-    )
+    answer_list = "\n".join(f"* **{letter}** {answers[letter]}" for letter in "ABCD")
     how_to_respond = f"""**reply**: answer {quiz_id} <letter>"""
 
-    content = """
+    content = f"""
 Q: {question}
 
 {answer_list}
-{how_to_respond}""".format(
-        question=question,
-        answer_list=answer_list,
-        how_to_respond=how_to_respond,
-    )
+{how_to_respond}"""
     return content
 
 
@@ -218,11 +195,10 @@ def update_quiz(quiz: Dict[str, Any], quiz_id: str, bot_handler: BotHandler) -> 
 def build_response(is_correct: bool, num_answers: int) -> str:
     if is_correct:
         response = ":tada: **{answer}** is correct, {sender_name}!"
+    elif num_answers >= 3:
+        response = ":disappointed: WRONG, {sender_name}! The correct answer is **{answer}**."
     else:
-        if num_answers >= 3:
-            response = ":disappointed: WRONG, {sender_name}! The correct answer is **{answer}**."
-        else:
-            response = ":disappointed: WRONG, {sender_name}! {option} is not correct."
+        response = ":disappointed: WRONG, {sender_name}! {option} is not correct."
     return response
 
 

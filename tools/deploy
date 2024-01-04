@@ -11,12 +11,12 @@ from typing import Any, Callable, Dict, List
 import requests
 from requests import Response
 
-red = "\033[91m"  # type: str
-green = "\033[92m"  # type: str
-end_format = "\033[0m"  # type: str
-bold = "\033[1m"  # type: str
+red = "\033[91m"
+green = "\033[92m"
+end_format = "\033[0m"
+bold = "\033[1m"
 
-bots_dir = ".bots"  # type: str
+bots_dir = ".bots"
 
 
 def pack(options: argparse.Namespace) -> None:
@@ -47,7 +47,7 @@ def pack(options: argparse.Namespace) -> None:
     zip_file_path = os.path.join(bots_dir, options.botname + ".zip")
     zip_file = zipfile.ZipFile(zip_file_path, "w", zipfile.ZIP_DEFLATED)
     # Pack the complete bot folder
-    for root, dirs, files in os.walk(options.path):
+    for root, _dirs, files in os.walk(options.path):
         for file in files:
             file_path = os.path.join(root, file)
             zip_file.write(file_path, os.path.relpath(file_path, options.path))
@@ -55,13 +55,11 @@ def pack(options: argparse.Namespace) -> None:
     zip_file.write(options.config, "zuliprc")
     # Pack the config file for the botfarm.
     bot_config = textwrap.dedent(
-        """\
+        f"""\
         [deploy]
-        bot={}
+        bot={options.main}
         zuliprc=zuliprc
-        """.format(
-            options.main
-        )
+        """
     )
     zip_file.writestr("config.ini", bot_config)
     zip_file.close()
@@ -114,7 +112,7 @@ def upload(options: argparse.Namespace) -> None:
     if not os.path.exists(file_path):
         print(f"upload: Could not find bot package at {file_path}.")
         sys.exit(1)
-    files = {"file": open(file_path, "rb")}
+    files = {"file": open(file_path, "rb")}  # noqa: SIM115
     headers = {"key": options.token}
     url = urllib.parse.urljoin(options.server, "bots/upload")
     response = requests.post(url, files=files, headers=headers)
@@ -183,10 +181,7 @@ def prepare(options: argparse.Namespace) -> None:
 def log(options: argparse.Namespace) -> None:
     check_common_options(options)
     headers = {"key": options.token}
-    if options.lines:
-        lines = options.lines
-    else:
-        lines = None
+    lines = options.lines
     payload = {"name": options.botname, "lines": lines}
     url = urllib.parse.urljoin(options.server, "bots/logs/" + options.botname)
     response = requests.get(url, json=payload, headers=headers)
@@ -211,10 +206,7 @@ def delete(options: argparse.Namespace) -> None:
 def list_bots(options: argparse.Namespace) -> None:
     check_common_options(options)
     headers = {"key": options.token}
-    if options.format:
-        pretty_print = True
-    else:
-        pretty_print = False
+    pretty_print = options.format
     url = urllib.parse.urljoin(options.server, "bots/list")
     response = requests.get(url, headers=headers)
     result = handle_common_response(

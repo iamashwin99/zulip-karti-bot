@@ -142,7 +142,7 @@ class BaremetricsHandler:
         response = "**Listing sources:** \n"
         for index, source in enumerate(sources_data):
             response += (
-                "{_count}.ID: {id}\n" "Provider: {provider}\n" "Provider ID: {provider_id}\n\n"
+                "{_count}.ID: {id}\nProvider: {provider}\nProvider ID: {provider_id}\n\n"
             ).format(_count=index + 1, **source)
 
         return response
@@ -154,15 +154,7 @@ class BaremetricsHandler:
         plans_data = plans_response.json()
         plans_data = plans_data["plans"]
 
-        template = "\n".join(
-            [
-                "{_count}.Name: {name}",
-                "Active: {active}",
-                "Interval: {interval}",
-                "Interval Count: {interval_count}",
-                "Amounts:",
-            ]
-        )
+        template = "{_count}.Name: {name}\nActive: {active}\nInterval: {interval}\nInterval Count: {interval_count}\nAmounts:"
         response = ["**Listing plans:**"]
         for index, plan in enumerate(plans_data):
             response += (
@@ -181,17 +173,7 @@ class BaremetricsHandler:
         customers_data = customers_data["customers"]
 
         # FIXME BUG here? mismatch of name and display name?
-        template = "\n".join(
-            [
-                "{_count}.Name: {display_name}",
-                "Display Name: {name}",
-                "OID: {oid}",
-                "Active: {is_active}",
-                "Email: {email}",
-                "Notes: {notes}",
-                "Current Plans:",
-            ]
-        )
+        template = "{_count}.Name: {display_name}\nDisplay Name: {name}\nOID: {oid}\nActive: {is_active}\nEmail: {email}\nNotes: {notes}\nCurrent Plans:"
         response = ["**Listing customers:**"]
         for index, customer in enumerate(customers_data):
             response += (
@@ -209,17 +191,7 @@ class BaremetricsHandler:
         subscriptions_data = subscriptions_response.json()
         subscriptions_data = subscriptions_data["subscriptions"]
 
-        template = "\n".join(
-            [
-                "{_count}.Customer Name: {name}",
-                "Customer Display Name: {display_name}",
-                "Customer OID: {oid}",
-                "Customer Email: {email}",
-                "Active: {_active}",
-                "Plan Name: {_plan_name}",
-                "Plan Amounts:",
-            ]
-        )
+        template = "{_count}.Customer Name: {name}\nCustomer Display Name: {display_name}\nCustomer OID: {oid}\nCustomer Email: {email}\nActive: {_active}\nPlan Name: {_plan_name}\nPlan Amounts:"
         response = ["**Listing subscriptions:**"]
         for index, subscription in enumerate(subscriptions_data):
             response += (
@@ -241,14 +213,14 @@ class BaremetricsHandler:
         return "\n".join(response)
 
     def create_plan(self, parameters: List[str]) -> str:
-        data_header = {
+        data_header: Any = {
             "oid": parameters[1],
             "name": parameters[2],
             "currency": parameters[3],
             "amount": int(parameters[4]),
             "interval": parameters[5],
             "interval_count": int(parameters[6]),
-        }  # type: Any
+        }
 
         url = f"https://api.baremetrics.com/v1/{parameters[0]}/plans"
         create_plan_response = requests.post(url, data=data_header, headers=self.auth_header)

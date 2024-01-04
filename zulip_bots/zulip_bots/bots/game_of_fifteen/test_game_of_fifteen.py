@@ -1,13 +1,16 @@
-from typing import Dict, List, Tuple
+from typing import Dict, Final, List, Tuple
+
+from typing_extensions import override
 
 from zulip_bots.bots.game_of_fifteen.game_of_fifteen import GameOfFifteenModel
-from zulip_bots.game_handler import BadMoveException
+from zulip_bots.game_handler import BadMoveError
 from zulip_bots.test_lib import BotTestCase, DefaultTests
 
 
 class TestGameOfFifteenBot(BotTestCase, DefaultTests):
     bot_name = "game_of_fifteen"
 
+    @override
     def make_request_message(
         self, content: str, user: str = "foo@example.com", user_name: str = "foo"
     ) -> Dict[str, str]:
@@ -58,50 +61,52 @@ class TestGameOfFifteenBot(BotTestCase, DefaultTests):
     def test_game_message_handler_responses(self) -> None:
         board = "\n\n:grey_question::one::two:\n\n:three::four::five:\n\n:six::seven::eight:"
         bot, bot_handler = self._get_handlers()
-        self.assertEqual(bot.gameMessageHandler.parse_board(self.winning_board), board)
-        self.assertEqual(bot.gameMessageHandler.alert_move_message("foo", "move 1"), "foo moved 1")
+        self.assertEqual(bot.game_message_handler.parse_board(self.winning_board), board)
         self.assertEqual(
-            bot.gameMessageHandler.game_start_message(),
+            bot.game_message_handler.alert_move_message("foo", "move 1"), "foo moved 1"
+        )
+        self.assertEqual(
+            bot.game_message_handler.game_start_message(),
             "Welcome to Game of Fifteen!"
             "To make a move, type @-mention `move <tile1> <tile2> ...`",
         )
 
-    winning_board = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    winning_board: Final = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
 
     def test_game_of_fifteen_logic(self) -> None:
-        def confirmAvailableMoves(
+        def confirm_available_moves(
             good_moves: List[int], bad_moves: List[int], board: List[List[int]]
         ) -> None:
-            gameOfFifteenModel.update_board(board)
+            game_of_fifteen_model.update_board(board)
             for move in good_moves:
-                self.assertTrue(gameOfFifteenModel.validate_move(move))
+                self.assertTrue(game_of_fifteen_model.validate_move(move))
 
             for move in bad_moves:
-                self.assertFalse(gameOfFifteenModel.validate_move(move))
+                self.assertFalse(game_of_fifteen_model.validate_move(move))
 
-        def confirmMove(
+        def confirm_move(
             tile: str,
             token_number: int,
             initial_board: List[List[int]],
             final_board: List[List[int]],
         ) -> None:
-            gameOfFifteenModel.update_board(initial_board)
-            test_board = gameOfFifteenModel.make_move("move " + tile, token_number)
+            game_of_fifteen_model.update_board(initial_board)
+            test_board = game_of_fifteen_model.make_move("move " + tile, token_number)
 
             self.assertEqual(test_board, final_board)
 
-        def confirmGameOver(board: List[List[int]], result: str) -> None:
-            gameOfFifteenModel.update_board(board)
-            game_over = gameOfFifteenModel.determine_game_over(["first_player"])
+        def confirm_game_over(board: List[List[int]], result: str) -> None:
+            game_of_fifteen_model.update_board(board)
+            game_over = game_of_fifteen_model.determine_game_over(["first_player"])
 
             self.assertEqual(game_over, result)
 
         def confirm_coordinates(board: List[List[int]], result: Dict[int, Tuple[int, int]]) -> None:
-            gameOfFifteenModel.update_board(board)
-            coordinates = gameOfFifteenModel.get_coordinates(board)
+            game_of_fifteen_model.update_board(board)
+            coordinates = game_of_fifteen_model.get_coordinates(board)
             self.assertEqual(coordinates, result)
 
-        gameOfFifteenModel = GameOfFifteenModel()
+        game_of_fifteen_model = GameOfFifteenModel()
 
         # Basic Board setups
         initial_board = [[8, 7, 6], [5, 4, 3], [2, 1, 0]]
@@ -111,20 +116,20 @@ class TestGameOfFifteenBot(BotTestCase, DefaultTests):
         winning_board = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
 
         # Test Move Validation Logic
-        confirmAvailableMoves([1, 2, 3, 4, 5, 6, 7, 8], [0, 9, -1], initial_board)
+        confirm_available_moves([1, 2, 3, 4, 5, 6, 7, 8], [0, 9, -1], initial_board)
 
         # Test Move Logic
-        confirmMove("1", 0, initial_board, [[8, 7, 6], [5, 4, 3], [2, 0, 1]])
+        confirm_move("1", 0, initial_board, [[8, 7, 6], [5, 4, 3], [2, 0, 1]])
 
-        confirmMove("1 2", 0, initial_board, [[8, 7, 6], [5, 4, 3], [0, 2, 1]])
+        confirm_move("1 2", 0, initial_board, [[8, 7, 6], [5, 4, 3], [0, 2, 1]])
 
-        confirmMove("1 2 5", 0, initial_board, [[8, 7, 6], [0, 4, 3], [5, 2, 1]])
+        confirm_move("1 2 5", 0, initial_board, [[8, 7, 6], [0, 4, 3], [5, 2, 1]])
 
-        confirmMove("1 2 5 4", 0, initial_board, [[8, 7, 6], [4, 0, 3], [5, 2, 1]])
+        confirm_move("1 2 5 4", 0, initial_board, [[8, 7, 6], [4, 0, 3], [5, 2, 1]])
 
-        confirmMove("3", 0, sample_board, [[7, 6, 8], [0, 3, 1], [2, 4, 5]])
+        confirm_move("3", 0, sample_board, [[7, 6, 8], [0, 3, 1], [2, 4, 5]])
 
-        confirmMove("3 7", 0, sample_board, [[0, 6, 8], [7, 3, 1], [2, 4, 5]])
+        confirm_move("3 7", 0, sample_board, [[0, 6, 8], [7, 3, 1], [2, 4, 5]])
 
         # Test coordinates logic:
         confirm_coordinates(
@@ -143,8 +148,8 @@ class TestGameOfFifteenBot(BotTestCase, DefaultTests):
         )
 
         # Test Game Over Logic:
-        confirmGameOver(winning_board, "current turn")
-        confirmGameOver(sample_board, "")
+        confirm_game_over(winning_board, "current turn")
+        confirm_game_over(sample_board, "")
 
     def test_invalid_moves(self) -> None:
         model = GameOfFifteenModel()
@@ -156,13 +161,13 @@ class TestGameOfFifteenBot(BotTestCase, DefaultTests):
         initial_board = [[8, 7, 6], [5, 4, 3], [2, 1, 0]]
 
         model.update_board(initial_board)
-        with self.assertRaises(BadMoveException):
+        with self.assertRaises(BadMoveError):
             model.make_move(move1, player_number=0)
-        with self.assertRaises(BadMoveException):
+        with self.assertRaises(BadMoveError):
             model.make_move(move2, player_number=0)
-        with self.assertRaises(BadMoveException):
+        with self.assertRaises(BadMoveError):
             model.make_move(move3, player_number=0)
-        with self.assertRaises(BadMoveException):
+        with self.assertRaises(BadMoveError):
             model.make_move(move4, player_number=0)
-        with self.assertRaises(BadMoveException):
+        with self.assertRaises(BadMoveError):
             model.make_move(move5, player_number=0)

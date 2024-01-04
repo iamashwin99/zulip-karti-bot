@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
-from io import StringIO as _StringIO
+from io import StringIO
 from typing import IO, Any
 
 import zulip
-
-
-class StringIO(_StringIO):
-    name = ""  # https://github.com/python/typeshed/issues/598
-
 
 usage = """upload-file [options]
 
@@ -28,7 +23,7 @@ options = parser.parse_args()
 client = zulip.init_from_options(options)
 
 if options.file_path:
-    file = open(options.file_path, "rb")  # type: IO[Any]
+    file: IO[Any] = open(options.file_path, "rb")  # noqa: SIM115
 else:
     file = StringIO("This is a test file.")
     file.name = "test.txt"

@@ -14,6 +14,7 @@ You can send messages to any Flock user associated with your account from Zulip.
 *Syntax*: **@botname to: message** where `to` is **firstName** of recipient.
 """
 
+
 # Matches the recipient name provided by user with list of users in his contacts.
 # If matches, returns the matched User's ID
 def find_recipient_id(users: List[Any], recipient_name: str) -> str:
@@ -29,8 +30,8 @@ def make_flock_request(url: str, params: Dict[str, str]) -> Tuple[Any, str]:
     try:
         res = requests.get(url, params=params)
         return (res.json(), None)
-    except ConnectionError as e:
-        logging.exception(str(e))
+    except ConnectionError:
+        logging.exception("Error connecting to Flock")
         error = "Uh-Oh, couldn't process the request \
 right now.\nPlease try again later"
         return (None, error)
@@ -83,7 +84,7 @@ def get_flock_response(content: str, config: Dict[str, str]) -> str:
 
 def get_flock_bot_response(content: str, config: Dict[str, str]) -> None:
     content = content.strip()
-    if content == "" or content == "help":
+    if content in ("", "help"):
         return help_message
     else:
         result = get_flock_response(content, config)

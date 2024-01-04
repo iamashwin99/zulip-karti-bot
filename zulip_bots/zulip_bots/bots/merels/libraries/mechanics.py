@@ -5,7 +5,7 @@ mechanisms as well as some functions for accessing the database.
 from collections import Counter
 from math import sqrt
 
-from zulip_bots.game_handler import BadMoveException
+from zulip_bots.game_handler import BadMoveError
 
 from . import constants, database, game_data, interface
 
@@ -56,15 +56,15 @@ def is_jump(vpos_before, hpos_before, vpos_after, hpos_after):
 
     # If the man is in outer square, the distance must be 3 or 1
     if [vpos_before, hpos_before] in constants.OUTER_SQUARE:
-        return not (distance == 3 or distance == 1)
+        return distance not in (3, 1)
 
     # If the man is in middle square, the distance must be 2 or 1
     if [vpos_before, hpos_before] in constants.MIDDLE_SQUARE:
-        return not (distance == 2 or distance == 1)
+        return distance not in (2, 1)
 
     # If the man is in inner square, the distance must be only 1
     if [vpos_before, hpos_before] in constants.INNER_SQUARE:
-        return not (distance == 1)
+        return distance != 1
 
 
 def get_hills_numbers(grid):
@@ -152,7 +152,7 @@ def is_legal_move(v1, h1, v2, h2, turn, phase, grid):
     return (
         is_in_grid(v2, h2)
         and is_empty(v2, h2, grid)
-        and (not is_jump(v1, h1, v2, h2))
+        and not is_jump(v1, h1, v2, h2)
         and is_own_piece(v1, h1, turn, grid)
     )
 
@@ -258,13 +258,12 @@ def get_phase_number(grid, turn, x_pieces_possessed_not_on_grid, o_pieces_posses
     if x_pieces_possessed_not_on_grid != 0 or o_pieces_possessed_not_on_grid != 0:
         # Placing pieces
         return 1
+    elif get_piece("X", grid) <= 3 or get_piece("O", grid) <= 3:
+        # Flying
+        return 3
     else:
-        if get_piece("X", grid) <= 3 or get_piece("O", grid) <= 3:
-            # Flying
-            return 3
-        else:
-            # Moving pieces
-            return 2
+        # Moving pieces
+        return 2
 
 
 def create_room(topic_name, merels_storage):
@@ -284,8 +283,8 @@ def create_room(topic_name, merels_storage):
         return response
     else:
         return (
-            "Failed: Cannot create an already existing game in {}. "
-            "Please finish the game first.".format(topic_name)
+            f"Failed: Cannot create an already existing game in {topic_name}. "
+            "Please finish the game first."
         )
 
 
@@ -303,17 +302,12 @@ def display_game(topic_name, merels_storage):
 
     response = ""
 
-    if data.take_mode == 1:
-        take = "Yes"
-    else:
-        take = "No"
+    take = "Yes" if data.take_mode == 1 else "No"
 
     response += interface.graph_grid(data.grid()) + "\n"
-    response += """Phase {}. Take mode: {}.
-X taken: {}, O taken: {}.
-    """.format(
-        data.get_phase(), take, data.x_taken, data.o_taken
-    )
+    response += f"""Phase {data.get_phase()}. Take mode: {take}.
+X taken: {data.x_taken}, O taken: {data.o_taken}.
+    """
 
     return response
 
@@ -364,11 +358,9 @@ def move_man(topic_name, p1, p2, merels_storage):
             data.hill_uid,
             data.take_mode,
         )
-        return "Moved a man from ({}, {}) -> ({}, {}) for {}.".format(
-            p1[0], p1[1], p2[0], p2[1], data.turn
-        )
+        return f"Moved a man from ({p1[0]}, {p1[1]}) -> ({p2[0]}, {p2[1]}) for {data.turn}."
     else:
-        raise BadMoveException("Failed: That's not a legal move. Please try again.")
+        raise BadMoveError("Failed: That's not a legal move. Please try again.")
 
 
 def put_man(topic_name, v, h, merels_storage):
@@ -406,7 +398,7 @@ def put_man(topic_name, v, h, merels_storage):
         )
         return f"Put a man to ({v}, {h}) for {data.turn}."
     else:
-        raise BadMoveException("Failed: That's not a legal put. Please try again.")
+        raise BadMoveError("Failed: That's not a legal put. Please try again.")
 
 
 def take_man(topic_name, v, h, merels_storage):
@@ -450,7 +442,7 @@ def take_man(topic_name, v, h, merels_storage):
         )
         return f"Taken a man from ({v}, {h}) for {data.turn}."
     else:
-        raise BadMoveException("Failed: That's not a legal take. Please try again.")
+        raise BadMoveError("Failed: That's not a legal take. Please try again.")
 
 
 def update_hill_uid(topic_name, merels_storage):
@@ -574,10 +566,9 @@ def can_take_mode(topic_name, merels_storage):
 
     updated_hill_uid = get_hills_numbers(updated_grid)
 
-    if current_hill_uid != updated_hill_uid and len(updated_hill_uid) >= len(current_hill_uid):
-        return True
-    else:
-        return False
+    return bool(
+        current_hill_uid != updated_hill_uid and len(updated_hill_uid) >= len(current_hill_uid)
+    )
 
 
 def check_moves(turn, grid):
@@ -588,7 +579,7 @@ def check_moves(turn, grid):
     :return: True, if there is any, False if otherwise
     """
     for hill in constants.HILLS:
-        for k in range(0, 2):
+        for k in range(2):
             g1 = grid[hill[k][0]][hill[k][1]]
             g2 = grid[hill[k + 1][0]][hill[k + 1][1]]
             if (g1 == " " and g2 == turn) or (g2 == " " and g1 == turn):

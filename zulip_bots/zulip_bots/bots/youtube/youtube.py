@@ -34,9 +34,10 @@ class YoutubeHandler:
         try:
             search_youtube("test", self.config_info["key"], self.config_info["video_region"])
         except HTTPError as e:
+            assert e.response is not None
             if e.response.json()["error"]["errors"][0]["reason"] == "keyInvalid":
                 bot_handler.quit(
-                    "Invalid key." "Follow the instructions in doc.md for setting API key."
+                    "Invalid key.Follow the instructions in doc.md for setting API key."
                 )
             else:
                 raise
@@ -44,7 +45,6 @@ class YoutubeHandler:
             logging.warning("Bad connection")
 
     def handle_message(self, message: Dict[str, str], bot_handler: BotHandler) -> None:
-
         if message["content"] == "" or message["content"] == "help":
             bot_handler.send_reply(message, self.help_content)
         else:
@@ -55,9 +55,7 @@ class YoutubeHandler:
 
 
 def search_youtube(query: str, key: str, region: str, max_results: int = 1) -> List[List[str]]:
-
-    videos = []
-    params = {
+    params: Dict[str, Union[str, int]] = {
         "part": "id,snippet",
         "maxResults": max_results,
         "key": key,
@@ -65,7 +63,7 @@ def search_youtube(query: str, key: str, region: str, max_results: int = 1) -> L
         "alt": "json",
         "type": "video",
         "regionCode": region,
-    }  # type: Dict[str, Union[str, int]]
+    }
 
     url = "https://www.googleapis.com/youtube/v3/search"
     try:
@@ -77,10 +75,11 @@ def search_youtube(query: str, key: str, region: str, max_results: int = 1) -> L
     search_response = r.json()
     # Add each result to the appropriate list, and then display the lists of
     # matching videos, channels, and playlists.
-    for search_result in search_response.get("items", []):
-        if search_result["id"]["kind"] == "youtube#video":
-            videos.append([search_result["snippet"]["title"], search_result["id"]["videoId"]])
-    return videos
+    return [
+        [search_result["snippet"]["title"], search_result["id"]["videoId"]]
+        for search_result in search_response.get("items", [])
+        if search_result["id"]["kind"] == "youtube#video"
+    ]
 
 
 def get_command_query(message: Dict[str, str]) -> Tuple[Optional[str], str]:
@@ -96,11 +95,10 @@ def get_command_query(message: Dict[str, str]) -> Tuple[Optional[str], str]:
 def get_bot_response(
     query: Optional[str], command: Optional[str], config_info: Dict[str, str]
 ) -> str:
-
     key = config_info["key"]
     max_results = int(config_info["number_of_results"])
     region = config_info["video_region"]
-    video_list = []  # type: List[List[str]]
+    video_list: List[List[str]] = []
     try:
         if query == "" or query is None:
             return YoutubeHandler.help_content
@@ -114,7 +112,7 @@ def get_bot_response(
             return YoutubeHandler.help_content
 
     except (ConnectionError, HTTPError):
-        return "Uh-Oh, couldn't process the request " "right now.\nPlease again later"
+        return "Uh-Oh, couldn't process the request right now.\nPlease again later"
 
     reply = "Here is what I found for `" + query + "` : "
 
@@ -125,8 +123,7 @@ def get_bot_response(
     elif len(video_list) == 1:
         return (
             reply
-            + "\n%s - [Watch now](https://www.youtube.com/watch?v=%s)"
-            % (video_list[0][0], video_list[0][1])
+            + f"\n{video_list[0][0]} - [Watch now](https://www.youtube.com/watch?v={video_list[0][1]})"
         ).strip()
 
     for title, id in video_list:

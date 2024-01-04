@@ -8,7 +8,7 @@ from typing import Optional
 
 from zulip_bots import finder
 from zulip_bots.lib import (
-    NoBotConfigException,
+    NoBotConfigError,
     run_message_handler_for_bot,
     zulip_env_vars_are_present,
 )
@@ -72,11 +72,10 @@ def exit_gracefully_if_zulip_config_is_missing(config_file: Optional[str]) -> No
         else:
             error_msg = f"ERROR: {config_file} does not exist."
 
+    elif zulip_env_vars_are_present():
+        return
     else:
-        if zulip_env_vars_are_present():
-            return
-        else:
-            error_msg = "ERROR: You did not supply a Zulip config file."
+        error_msg = "ERROR: You did not supply a Zulip config file."
 
     if error_msg:
         print("\n")
@@ -103,12 +102,11 @@ def exit_gracefully_if_bot_config_file_does_not_exist(bot_config_file: Optional[
 
     if not os.path.exists(bot_config_file):
         print(
-            """
-            ERROR: %s does not exist.
+            f"""
+            ERROR: {bot_config_file} does not exist.
 
             You probably just specified the wrong file location here.
             """
-            % (bot_config_file,)
         )
         sys.exit(1)
 
@@ -119,7 +117,7 @@ def main() -> None:
     if args.registry:
         try:
             bot_source, lib_module = finder.import_module_from_zulip_bot_registry(args.bot)
-        except finder.DuplicateRegisteredBotName as error:
+        except finder.DuplicateRegisteredBotNameError as error:
             print(
                 f'ERROR: Found duplicate entries for "{error}" in zulip bots registry.\n'
                 "Make sure that you don't install bots using the same entry point. Exiting now."
@@ -183,7 +181,7 @@ def main() -> None:
             bot_name=bot_name,
             bot_source=bot_source,
         )
-    except NoBotConfigException:
+    except NoBotConfigError:
         print(
             """
             ERROR: Your bot requires you to specify a third party
