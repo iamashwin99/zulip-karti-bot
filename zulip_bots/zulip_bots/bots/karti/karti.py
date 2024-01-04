@@ -22,7 +22,7 @@ class KartiHandler:
 
     def uploadImage(self, filename,method='zulip'):
         if(method=='zulip'):
-            client = zulip.Client(config_file="/home/karnada/sandbox/zulip-karti-bot/zuliprc")
+            client = zulip.Client(config_file="/scratch/karnada/Sandbox/zulip-bots/kartizuliprc")
             with open(filename, "rb") as fp:
                 result = client.upload_file(fp)
             os.remove(filename)

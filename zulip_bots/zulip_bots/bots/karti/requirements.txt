@@ -1,0 +1,4 @@
+wget
+pdf2image
+Pillow==9.5.0
+
