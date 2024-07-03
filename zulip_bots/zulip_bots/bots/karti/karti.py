@@ -42,7 +42,20 @@ class KartiHandler:
         url=self.uploadImage(image_f_name)
         os.remove(pdf_f_name)
         return url
+    def oneLastTime(self):
+        """ Print Kartis last wishes"""
+        wish = """
+Do not go gentle into that good night,
+Old age should burn and rave at close of day;
+Rage, rage against the dying of the light.
 
+Though wise men at their end know dark is right,
+Because their words had forked no lightning they
+Do not go gentle into that good night.
+        """
+        wish+="\n Tell my wife I love her very much! 🫡"
+
+        return wish
 
     def getMenu(self,day='today'):
         # day can be today, next_day
@@ -94,6 +107,10 @@ class KartiHandler:
             day='today'
         elif("tomorrow" in user_msg):
             day='next_day'
+        elif("one last time" in user_msg):
+            day='today'
+            #TODO print the last wishes
+            bot_handler.send_reply(message, self.oneLastTime())
         else:
             sendUsage()
             day='today'
